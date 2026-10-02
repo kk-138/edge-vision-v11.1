@@ -1,8 +1,12 @@
 venv-mac/
 __pycache__/
 *.pyc
-daily_videos/
-event_videos/
-event_images/
-false_positives/
 .DS_Store
+daily_videos/*
+!daily_videos/.gitkeep
+event_videos/*
+!event_videos/.gitkeep
+event_images/*
+!event_images/.gitkeep
+false_positives/*
+!false_positives/.gitkeep
