@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<script src="/static/js/theme-toggle.js"></script>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EDGE-Vision 身分選擇</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/design-system.css" />
+  <style>
+    /* ===================== 電子圍籬配色系統（與監看頁相同） ===================== */
+    :root {
+      --bg: #101024;
+      /* 背景 深紫黑 */
+      --card: #171C23;
+      /* 卡片 冷灰黑 */
+      --primary: #78E3F5;
+      /* 冰藍：系統 / 科技 */
+      --fence: #D8FF5A;
+      /* 螢光黃綠：電子圍籬 */
+      --alert: #FF8066;
+      /* 珊瑚橘：警示 */
+      --text: #F5F1EA;
+      /* 暖白文字 */
+      --text-muted: rgba(245, 241, 234, 0.72);
+      --on-primary: #101024;
+      /* 冰藍底上的文字 */
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'PingFang TC', 'PingFang SC', 'Noto Sans TC', sans-serif;
+      overflow: hidden;
+      /* 單頁：不捲動 */
+    }
+
+    /* ================= 全螢幕背景 ================= */
+    .hero {
+      position: relative;
+      height: 100vh;
+      width: 100%;
+      overflow: hidden;
+      /* 照片：static/img/IMG_4917.png；沒有照片時顯示深色漸層備援 */
+      background:
+        url('/static/img/IMG_4917.png') center / cover no-repeat,
+        radial-gradient(ellipse at 20% 30%, rgba(120, 227, 245, 0.18), transparent 55%),
+        radial-gradient(ellipse at 80% 75%, rgba(216, 255, 90, 0.10), transparent 55%),
+        var(--bg);
+    }
+
+    /* 深色遮罩：左右兩邊較暗，中間保持明亮 */
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(90deg, rgba(16, 16, 36, 0.92) 0%, rgba(16, 16, 36, 0.6) 18%, rgba(16, 16, 36, 0.2) 32%, rgba(16, 16, 36, 0) 42%),
+        linear-gradient(270deg, rgba(16, 16, 36, 0.92) 0%, rgba(16, 16, 36, 0.6) 18%, rgba(16, 16, 36, 0.2) 32%, rgba(16, 16, 36, 0) 42%);
+      z-index: 1;
+    }
+
+    /* ================= 頂部列 ================= */
+    .topbar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 104px;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      padding: 0 48px;
+    }
+
+    .brand {
+      text-decoration: none;
+      color: var(--text);
+    }
+
+    .brand-name {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+
+    .brand-name b {
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    /* ================= 左邊直書標題 ================= */
+    .title-wrap {
+      position: absolute;
+      top: 104px;
+      bottom: 48px;
+      left: 4%;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+    }
+
+    .title-area {
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      display: flex;
+      flex-direction: column;
+      /* 直書時：各行由右往左並排 */
+      align-items: flex-start;
+      gap: 14px;
+      max-height: calc(100vh - 172px);
+      padding-left: 18px;
+      border-left: 3px solid var(--fence);
+      /* 螢光黃綠「圍籬」線 */
+      animation: introIn 1.2s ease-out both;
+    }
+
+    @keyframes introIn {
+      from {
+        opacity: 0;
+        transform: translateX(-16px);
+      }
+
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    .eyebrow {
+      font-size: 12px;
+      letter-spacing: 0.3em;
+      color: var(--fence);
+    }
+
+    .selection-title {
+      margin: 0;
+      font-size: clamp(30px, 4.2vh, 46px);
+      font-weight: 500;
+      line-height: 1.45;
+      letter-spacing: 0.18em;
+      color: var(--text);
+      text-shadow: 0 2px 18px rgba(0, 0, 0, 0.6);
+    }
+
+    .selection-subtitle-en {
+      font-size: 14px;
+      letter-spacing: 0.4em;
+      color: var(--primary);
+    }
+
+    /* ================= 右下角：照顧者登入 ================= */
+    .corner-actions {
+      position: absolute;
+      right: 48px;
+      bottom: 48px;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 14px;
+      animation: introIn 1.2s ease-out 0.5s both;
+    }
+
+    /* 主按鈕：直角、半透明；滑鼠移上去文字換成 ENTER */
+    .login-btn {
+      position: relative;
+      width: 240px;
+      height: 64px;
+      overflow: hidden;
+      padding: 0;
+      background: rgba(23, 28, 35, 0.55);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(120, 227, 245, 0.55);
+      border-left: 3px solid var(--primary);
+      border-radius: 0;
+      color: var(--text);
+      font: inherit;
+      cursor: pointer;
+      transition: background 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
+    }
+
+    .login-btn .label {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.4s ease, opacity 0.4s ease;
+    }
+
+    /* 平常顯示：照顧者登入 */
+    .login-btn .label-default {
+      font-size: 18px;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+    }
+
+    /* 滑上去顯示：ENTER（先藏在下面） */
+    .login-btn .label-hover {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.45em;
+      color: var(--on-primary);
+      transform: translateY(100%);
+      opacity: 0;
+    }
+
+    .login-btn:hover,
+    .login-btn:focus-visible {
+      background: var(--primary);
+      border-color: var(--primary);
+      box-shadow: 0 0 28px rgba(120, 227, 245, 0.45);
+      outline: none;
+    }
+
+    .login-btn:hover .label-default,
+    .login-btn:focus-visible .label-default {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+
+    .login-btn:hover .label-hover,
+    .login-btn:focus-visible .label-hover {
+      transform: none;
+      opacity: 1;
+    }
+
+    /* 次要連結：其他照顧者註冊 */
+    .sub-link {
+      color: var(--text-muted);
+      font-size: 13px;
+      letter-spacing: 0.1em;
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+      transition: color 0.25s ease, border-color 0.25s ease;
+    }
+
+    .sub-link:hover {
+      color: var(--fence);
+      border-bottom-color: var(--fence);
+    }
+
+    /* 減少動態偏好：關掉動畫 */
+    @media (prefers-reduced-motion: reduce) {
+
+      .title-area,
+      .corner-actions {
+        animation: none;
+      }
+
+      .login-btn .label {
+        transition: none;
+      }
+    }
+
+    /* ================= 手機版 ================= */
+    @media (max-width: 760px) {
+      .topbar {
+        padding: 0 20px;
+        height: 80px;
+      }
+
+      .brand-name {
+        font-size: 20px;
+      }
+
+      .hero::before {
+        background: linear-gradient(0deg, rgba(16, 16, 36, 0.92) 0%, rgba(16, 16, 36, 0.35) 55%, rgba(16, 16, 36, 0.55) 100%);
+      }
+
+      /* 手機：標題改回橫書放上面 */
+      .title-wrap {
+        top: 96px;
+        bottom: auto;
+        left: 20px;
+        right: 20px;
+      }
+
+      .title-area {
+        writing-mode: horizontal-tb;
+        max-height: none;
+        padding-left: 14px;
+      }
+
+      .selection-title {
+        font-size: 28px;
+        letter-spacing: 0.06em;
+      }
+
+      .eyebrow {
+        font-size: 11px;
+        letter-spacing: 0.16em;
+      }
+
+      .corner-actions {
+        right: 20px;
+        left: 20px;
+        bottom: 32px;
+      }
+
+      .login-btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="hero">
+    <!-- 頂部列 -->
+    <header class="topbar">
+      <a href="/" class="brand">
+        <span class="brand-name">EDGE-<b>VISION</b></span>
+      </a>
+    </header>
+
+    <!-- 左邊直書標題 -->
+    <div class="title-wrap">
+      <div class="title-area">
+        <span class="eyebrow">SMART CARE · ELECTRONIC FENCE</span>
+        <h1 class="selection-title">輕量化 Edge-Vision<br>安全防護網</h1>
+        <div class="selection-subtitle-en">EDGE-VISION</div>
+      </div>
+    </div>
+
+    <!-- 右下角：照顧者登入（滑上去顯示 ENTER） -->
+    <div class="corner-actions">
+      <button type="button" class="login-btn" onclick="window.location.href='/monitor'" aria-label="照顧者登入">
+        <span class="label label-default">照顧者登入</span>
+        <span class="label label-hover">ENTER →</span>
+      </button>
+    </div>
+  </div>
+
+</body>
+
+</html>

@@ -1,0 +1,2057 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<script src="/static/js/theme-toggle.js"></script>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EDGE-Vision 照護系統</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/design-system.css" />
+  <style>
+    html {
+      scrollbar-gutter: stable;
+    }
+
+    /* ===== 色系（與登入頁一致）===== */
+    :root {
+      --bg: #101024;
+      /* 背景 */
+      --card: rgba(23, 28, 35, 0.55);
+      /* 卡片（半透明） */
+      --card-hover: rgba(30, 37, 48, 0.72);
+      --surface: rgba(19, 23, 41, 0.6);
+      /* 彈窗頂列、深色區塊 */
+      --border: rgba(245, 241, 234, 0.12);
+      --border-strong: rgba(245, 241, 234, 0.22);
+      --ice: #78E3F5;
+      /* 冰藍：系統 / 科技 */
+      --ice-light: #B4F1FA;
+      --ice-soft: rgba(120, 227, 245, 0.12);
+      --ice-mid: rgba(120, 227, 245, 0.22);
+      --lime: #D8FF5A;
+      /* 螢光黃綠：圍籬 / 偵測區域 */
+      --lime-soft: rgba(216, 255, 90, 0.16);
+      --coral: #FF8066;
+      /* 珊瑚紅：異常 / 警報 */
+      --coral-soft: rgba(255, 128, 102, 0.16);
+      --text: #F5F1EA;
+      /* 暖白文字 */
+      --muted: #9A9FB0;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0 !important;
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'PingFang TC', 'PingFang SC', 'Noto Sans TC', sans-serif;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* ================= 背景（與登入頁第二頁相同） ================= */
+    .bg-veil {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse at 20% 30%, rgba(120, 227, 245, 0.14), transparent 55%),
+        radial-gradient(ellipse at 80% 75%, rgba(216, 255, 90, 0.07), transparent 55%),
+        linear-gradient(90deg, #101024 0%, #1B2238 22%, #2A3450 50%, #1B2238 78%, #101024 100%);
+    }
+
+
+
+    @keyframes scan {
+      from {
+        top: -120px;
+      }
+
+      to {
+        top: 100%;
+      }
+    }
+
+    #view-dashboard {
+      position: relative;
+      z-index: 5;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .scanline {
+        display: none;
+      }
+    }
+
+    @media (max-width: 760px) {
+
+      .grid-lines .v1,
+      .grid-lines .v3 {
+        display: none;
+      }
+
+      .grid-lines .h1 {
+        top: 80px;
+      }
+
+      .grid-lines .h2 {
+        bottom: 80px;
+      }
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    #view-selection {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .selection-title {
+      font-size: clamp(24px, 4vw, 36px);
+      font-family: 'PingFang TC', 'PingFang SC', 'Noto Sans TC', sans-serif;
+      font-weight: 500;
+      margin: 0 0 10px 0;
+      letter-spacing: 0.05em;
+      background: linear-gradient(135deg, #D4F7FC 0%, #78E3F5 50%, #3FAFC4 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .selection-subtitle-en {
+      font-size: 16px;
+      color: var(--muted);
+      margin: 0 0 8px 0;
+      letter-spacing: 0.15em;
+    }
+
+    .selection-subtitle {
+      color: var(--muted);
+      margin-bottom: 40px;
+      font-size: 15px;
+    }
+
+    .selection-grid {
+      display: flex;
+      gap: 24px;
+      max-width: 680px;
+      width: 100%;
+    }
+
+    .choice-card {
+      flex: 1;
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      padding: 48px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: transform 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+    }
+
+    .choice-card:hover {
+      transform: translateY(-6px);
+      border-color: var(--ice);
+      background: var(--card-hover);
+    }
+
+    .choice-card h3 {
+      font-size: 24px;
+      color: var(--text);
+      margin: 0 0 12px 0;
+    }
+
+    .choice-card p {
+      color: var(--muted);
+      font-size: 14px;
+      margin: 0;
+      line-height: 1.5;
+    }
+
+    /* 頂部導覽列（隨頁面滾動自然消失，不固定） */
+    .navbar-header {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 1280px;
+      height: auto;
+      background-color: transparent;
+      z-index: 2000;
+      padding: 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-sizing: border-box;
+    }
+
+    .nav-brand {
+      font-size: 20px;
+      color: var(--text);
+      font-weight: bold;
+      text-decoration: none;
+      letter-spacing: 0.05em;
+    }
+
+    /* 漢堡按鈕 */
+    .hamburger-menu-wrapper {
+      position: relative;
+      z-index: 2010;
+    }
+
+    .hamburger-btn {
+      background: var(--card);
+      border: 1.5px solid var(--ice);
+      width: 44px;
+      height: 44px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .hamburger-btn:hover {
+      background: var(--card-hover);
+    }
+
+    .hamburger-btn span {
+      display: block;
+      width: 20px;
+      height: 2px;
+      background-color: var(--ice);
+      transition: 0.3s;
+    }
+
+    .hamburger-menu-wrapper.open .hamburger-btn span:nth-child(1) {
+      transform: translateY(7px) rotate(45deg);
+    }
+
+    .hamburger-menu-wrapper.open .hamburger-btn span:nth-child(2) {
+      opacity: 0;
+    }
+
+    .hamburger-menu-wrapper.open .hamburger-btn span:nth-child(3) {
+      transform: translateY(-7px) rotate(-45deg);
+    }
+
+    /* 下拉選單 */
+    .hamburger-dropdown {
+      position: absolute;
+      top: calc(100% + 12px);
+      right: 0;
+      width: 220px;
+      background: var(--card);
+      border: 1.5px solid var(--ice);
+      display: none;
+      flex-direction: column;
+      z-index: 2020;
+      box-shadow: -4px 12px 32px rgba(0, 0, 0, 0.85);
+    }
+
+    .hamburger-menu-wrapper.open .hamburger-dropdown {
+      display: flex;
+    }
+
+    .dropdown-item {
+      position: relative;
+      padding: 16px 20px;
+      color: var(--text);
+      text-decoration: none;
+      font-size: 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .dropdown-item:last-child {
+      border-bottom: none;
+    }
+
+    .dropdown-item:hover {
+      background: var(--ice-soft);
+      color: var(--ice-light);
+    }
+
+    .dropdown-item.active {
+      background: var(--ice-mid);
+      color: var(--ice-light);
+      font-weight: bold;
+    }
+
+    .dropdown-item.active::after {
+      content: "✓";
+      color: var(--ice);
+      font-size: 16px;
+      position: static;
+      transform: none;
+      margin: 0;
+      box-shadow: none;
+      border: none;
+      background: transparent;
+      padding: 0;
+      visibility: visible;
+      opacity: 1;
+    }
+
+    /* 選單提示框 */
+    .dropdown-item[data-tooltip]::before {
+      content: attr(data-tooltip);
+      position: absolute;
+      right: 100%;
+      top: 50%;
+      transform: translateY(-50%);
+      margin-right: 12px;
+      background: var(--card);
+      color: var(--ice-light);
+      padding: 8px 14px;
+      border: 1px solid rgba(120, 227, 245, 0.5);
+      font-size: 13px;
+      white-space: nowrap;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.2s ease, margin-right 0.2s ease;
+      box-shadow: -4px 6px 16px rgba(0, 0, 0, 0.6);
+      z-index: 2030;
+    }
+
+    .dropdown-item[data-tooltip]:hover::before {
+      opacity: 1;
+      visibility: visible;
+      margin-right: 16px;
+    }
+
+    .page-container {
+      width: 100% !important;
+      max-width: 1280px !important;
+      margin: 0 auto !important;
+      padding: 32px !important;
+      padding-top: 80px !important;
+      box-sizing: border-box !important;
+    }
+
+    .page-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .page-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text);
+      margin: 0 0 6px 0;
+      letter-spacing: 0.02em;
+    }
+
+    .page-desc {
+      font-size: 14px;
+      color: rgba(245, 241, 234, 0.62);
+      margin: 0;
+      line-height: 1.6;
+    }
+
+    .status-pill-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 0;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .status-pill.online {
+      background: var(--ice-soft);
+      color: var(--ice);
+      border: 1px solid rgba(120, 227, 245, 0.35);
+    }
+
+    .status-pill.offline {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--muted);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .dot-online {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--ice);
+      box-shadow: 0 0 8px var(--ice);
+    }
+
+    .camera-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      position: relative;
+      z-index: 10;
+    }
+
+    @media (max-width: 900px) {
+      .camera-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 600px) {
+      .camera-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .cam-card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: 0;
+      position: relative;
+      aspect-ratio: 4 / 3;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.25s ease, border-color 0.25s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .cam-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--ice);
+    }
+
+    .cam-card.status-active {
+      border-color: var(--ice);
+    }
+
+    .cam-card.status-yellow {
+      border-color: var(--lime);
+    }
+
+    .cam-card.status-orange {
+      border-color: var(--coral);
+    }
+
+    .cam-card-video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: none;
+      z-index: 1;
+      background: #000;
+    }
+
+    .cam-card.is-streaming .cam-card-video {
+      display: block;
+    }
+
+    .cam-card.is-streaming .avatar-silhouette {
+      display: none;
+    }
+
+    .cam-header {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      right: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 5;
+    }
+
+    .cam-name {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text);
+      background: rgba(16, 16, 36, 0.65);
+      padding: 2px 6px;
+      border-radius: 0;
+    }
+
+    /* 所屬區域標籤 */
+    .cam-zone-badge {
+      background: var(--ice-soft);
+      border: 1px solid var(--ice);
+      color: var(--ice-light);
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 0;
+      cursor: pointer;
+    }
+
+    .icon-btn {
+      background: rgba(16, 16, 36, 0.65);
+      border: 1px solid transparent;
+      cursor: pointer;
+      margin-left: 6px;
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      border-radius: 0;
+      transition: all 0.2s ease;
+    }
+
+    .icon-btn.edit-btn:hover {
+      color: var(--ice);
+      background: var(--ice-soft);
+      border-color: var(--ice);
+    }
+
+    .icon-btn.delete-btn:hover {
+      color: var(--coral);
+      background: var(--coral-soft);
+      border-color: var(--coral);
+    }
+
+    .rec-dot {
+      width: 6px;
+      height: 6px;
+      background-color: var(--coral);
+      border-radius: 50%;
+      box-shadow: 0 0 6px var(--coral);
+    }
+
+    .avatar-silhouette {
+      width: 110px;
+      height: 110px;
+      fill: #232B3A;
+      z-index: 1;
+    }
+
+    .cam-card-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .cam-footer {
+      position: absolute;
+      bottom: 14px;
+      left: 14px;
+      z-index: 5;
+    }
+
+    .cam-status-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 0;
+      font-size: 12px;
+      font-weight: 500;
+      background: rgba(16, 16, 36, 0.7);
+    }
+
+    .cam-status-tag.safe {
+      background: var(--ice-mid);
+      color: var(--ice);
+    }
+
+    .cam-status-tag.yellow {
+      background: var(--lime-soft);
+      color: var(--lime);
+    }
+
+    .cam-status-tag.orange {
+      background: var(--coral-soft);
+      color: var(--coral);
+    }
+
+    .cam-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 10, 26, 0.88);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      display: none;
+      align-items: flex-start;
+      justify-content: center;
+      z-index: 10000;
+      padding: 24px 16px;
+      overflow-y: auto;
+    }
+
+    .cam-modal-backdrop.open {
+      display: flex;
+    }
+
+    .cam-modal-window {
+      background: var(--card);
+      border: 1.5px solid var(--ice);
+      width: 100%;
+      max-width: 860px;
+      border-radius: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.85);
+      max-height: calc(100vh - 40px);
+      margin: auto;
+      position: relative;
+    }
+
+    .modal-topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      color: var(--text);
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .modal-close-btn {
+      background: var(--ice-soft);
+      border: 1.5px solid var(--ice);
+      color: var(--ice);
+      width: 34px;
+      height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 0;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .modal-close-btn:hover {
+      background: var(--ice);
+      color: var(--bg);
+      transform: scale(1.06);
+      box-shadow: 0 0 12px rgba(120, 227, 245, 0.5);
+    }
+
+    .modal-view-area {
+      position: relative;
+      background: #07070F;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .modal-view-area.is-streaming svg.silhouette {
+      display: none;
+    }
+
+    .modal-view-area svg.silhouette {
+      width: 180px;
+      height: 180px;
+      fill: #1F2636;
+    }
+
+    .modal-view-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    .modal-live-tag {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      background: rgba(255, 128, 102, 0.9);
+      color: var(--bg);
+      padding: 4px 10px;
+      border-radius: 0;
+      font-size: 12px;
+      font-weight: bold;
+      z-index: 4;
+    }
+
+    .modal-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .modal-action-btn {
+      background: transparent;
+      border: 1.5px solid var(--border-strong);
+      color: var(--text);
+      padding: 8px 16px;
+      border-radius: 0 !important;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .modal-action-btn:hover {
+      border-color: #56607A;
+      background: var(--card-hover);
+    }
+
+    .modal-action-btn.gold-btn {
+      border: 1.5px solid var(--ice) !important;
+      color: var(--ice) !important;
+    }
+
+    .modal-action-btn.gold-btn:hover {
+      background: var(--ice-soft) !important;
+      color: var(--ice-light) !important;
+    }
+
+    .modal-action-btn.danger-btn {
+      border-color: var(--coral) !important;
+      color: var(--coral) !important;
+    }
+
+    .modal-action-btn.danger-btn:hover {
+      background: var(--coral-soft) !important;
+    }
+
+    /* 表單輸入元件 */
+    .form-input,
+    .form-select {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border-strong);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 0;
+      font-size: 14px;
+    }
+
+    .form-select {
+      border-color: var(--ice);
+      cursor: pointer;
+    }
+
+    .form-label {
+      display: block;
+      color: var(--ice);
+      font-weight: bold;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, rgba(120, 227, 245, 0.18) 0%, rgba(120, 227, 245, 0.05) 100%);
+      border: 1px solid var(--ice);
+      color: var(--ice);
+      padding: 10px 20px;
+      font-size: 15px;
+      font-weight: bold;
+      border-radius: 0;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(120, 227, 245, 0.1);
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, rgba(120, 227, 245, 0.3) 0%, rgba(120, 227, 245, 0.1) 100%);
+      box-shadow: 0 6px 16px rgba(120, 227, 245, 0.22);
+      transform: translateY(-2px);
+      color: var(--text);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    #view-elderly {
+      padding: 48px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .back-btn {
+      background: transparent;
+      border: 1.5px solid var(--ice);
+      color: var(--ice);
+      padding: 8px 18px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-bottom: 32px;
+      transition: all 0.2s ease;
+    }
+
+    .back-btn:hover {
+      background: var(--ice);
+      color: var(--bg);
+    }
+
+    /* 下拉選項在各瀏覽器維持可讀 */
+    select option {
+      color: #101024;
+    }
+
+    /* ===== 直角 + 半透明玻璃感：所有框框統一 ===== */
+    .choice-card,
+    .hamburger-btn,
+    .hamburger-dropdown,
+    .dropdown-item[data-tooltip]::before,
+    .cam-card,
+    .cam-modal-window,
+    .modal-topbar,
+    .form-select {
+      backdrop-filter: blur(12px) saturate(1.2);
+      -webkit-backdrop-filter: blur(12px) saturate(1.2);
+    }
+
+    /* 原生下拉選單的選項清單不支援透明，維持實色才看得清楚 */
+    select option {
+      background: #171C23;
+      color: var(--text);
+    }
+
+    /* ===== 在線狀態：淺綠色 ===== */
+    .status-pill.online {
+      background: rgba(142, 245, 181, 0.12);
+      color: #8EF5B5;
+      border: 1px solid rgba(142, 245, 181, 0.4);
+    }
+
+    .status-pill.online .dot-online {
+      background-color: #8EF5B5;
+      box-shadow: 0 0 8px #8EF5B5;
+    }
+
+    /* ===== 即時串流的藍點：閃爍 ===== */
+    .cam-status-tag.safe .dot-online {
+      animation: liveBlink 3s ease-in-out infinite;
+    }
+
+    @keyframes liveBlink {
+
+      0%,
+      100% {
+        opacity: 1;
+        box-shadow: 0 0 10px var(--ice);
+      }
+
+      50% {
+        opacity: 0.2;
+        box-shadow: 0 0 0 transparent;
+      }
+    }
+
+    @keyframes loiteringBlink {
+      0% { border-color: var(--border); box-shadow: none; }
+      50% { border-color: var(--coral); box-shadow: 0 0 15px var(--coral); }
+      100% { border-color: var(--border); box-shadow: none; }
+    }
+    .cam-card.loitering-blink {
+      animation: loiteringBlink 1.2s infinite ease-in-out;
+      border-width: 2px !important;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .cam-status-tag.safe .dot-online {
+        animation: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- 固定背景（與登入頁相同） -->
+  <div class="bg-veil" aria-hidden="true"></div>
+  <div class="grid-lines" aria-hidden="true">
+    <span class="v v1"></span><span class="v v2"></span><span class="v v3"></span>
+    <span class="h h1"></span><span class="h h2"></span>
+  </div>
+  <div class="scanline" aria-hidden="true"></div>
+
+  <!-- 照顧者端 (9宮格 + 漢堡選單) -->
+  <div id="view-dashboard">
+
+    <!-- 頂部導覽列 -->
+    <header class="navbar-header">
+      <a href="/monitor" class="brand" title="回到即時監看"><span class="brand-name">EDGE-<b>VISION</b></span></a>
+
+      <div class="hamburger-menu-wrapper" id="hamburgerMenu">
+        <button class="hamburger-btn" onclick="toggleMenu()" aria-label="選單">
+          <span></span><span></span><span></span>
+        </button>
+
+        <div class="hamburger-dropdown">
+          <a href="/monitor" class="dropdown-item active" data-tooltip="返回即時監看畫面">即時監看</a>
+          <a href="跌倒與異常姿態偵測.html" class="dropdown-item" data-tooltip="跌倒事件歷史紀錄">歷史紀錄</a>
+          <a href="隱私模式開關.html" class="dropdown-item" data-tooltip="暫時遮蔽鏡頭">隱私模式</a>
+          <a href="三階段警報.html" class="dropdown-item" data-tooltip="三階段警報策略與模型設定">系統設定</a>
+          <a href="/" class="dropdown-item" data-tooltip="重新挑選照顧者或長輩身分">返回身分選擇</a>
+        </div>
+      </div>
+    </header>
+
+    <div class="page-container">
+      <div class="page-head">
+        <div>
+          <h1 class="page-title">即時監看</h1>
+          <p class="page-desc">點擊任一畫面可放大檢視，客廳畫面已直接連線電腦鏡頭即時串流。</p>
+        </div>
+        <div>
+          <button class="btn-primary" onclick="addCamera()">
+            新增攝影機
+          </button>
+        </div>
+      </div>
+
+      <div class="status-pill-group">
+        <div class="status-pill online"><span class="dot-online"></span><span id="onlineCount">{{ n_cameras }}</span>
+          台在線</div>
+        <div class="status-pill offline"><span id="offlineCount">0</span> 台離線</div>
+      </div>
+
+      <div class="camera-grid" id="cameraGrid">
+        {% for i in range(n_cameras) %}
+        <div class="cam-card is-streaming" id="cam-card-{{ i }}" data-name="攝影機 {{ i }}" data-status="即時監看中">
+          <div class="cam-header" style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+              <span class="cam-name" id="cam-name-{{ i }}">CAM {{ i }}</span>
+              <span class="cam-zone-badge" id="cam-zone-{{ i }}" onclick="editCameraInfo({{ i }}, event)"
+                title="點擊設定名稱與所屬區域">浴室門口</span>
+              <button class="icon-btn edit-btn" onclick="editCameraInfo({{ i }}, event)" title="設定攝影機名稱與所屬區域">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+                </svg>
+              </button>
+              <button class="icon-btn delete-btn" onclick="deleteCamera({{ i }}, event)" title="刪除攝影機">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+              </button>
+            </div>
+            <span class="rec-dot"></span>
+          </div>
+
+          <img id="cam-video-{{ i }}" src="/video_feed/{{ i }}" class="cam-card-video"
+            style="object-fit:contain; transition: opacity 0.3s;" />
+
+          <svg class="avatar-silhouette" viewBox="0 0 24 24">
+            <path
+              d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+          </svg>
+
+          <svg class="cam-card-svg" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+          <div class="cam-footer"><span class="cam-status-tag safe" id="cam-status-tag-{{ i }}"><span
+                class="dot-online"></span>即時串流</span></div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+
+  <!-- 放大檢視彈窗 -->
+  <div class="cam-modal-backdrop" id="camModal">
+    <div class="cam-modal-window">
+      <div class="modal-topbar">
+        <div class="modal-title">
+          <span class="dot-online"></span>
+          <span id="modalCamName">攝影機</span>
+          <span id="modalCamZoneBadge" class="cam-zone-badge"
+            style="font-size: 12px; padding: 2px 10px; margin-left: 8px; cursor: default;">浴室門口</span>
+        </div>
+        <button class="modal-close-btn" id="modalCloseBtn" title="關閉視窗" aria-label="關閉">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-view-area" id="modalViewArea">
+        <span class="modal-live-tag">LIVE</span>
+        <img class="modal-video-stream" id="modalVideoStream" style="display:block; width:100%; height:auto;" />
+        <svg class="silhouette" viewBox="0 0 24 24">
+          <path
+            d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+        </svg>
+        <svg class="modal-view-svg" id="modalSvg" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+      </div>
+      <div class="modal-controls">
+        <div
+          style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
+          <div id="modalCamStatus" style="font-size:14px; color:var(--muted);">狀態：正常</div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:13px; color:var(--ice); font-weight:500;">所屬區域：</span>
+            <select id="modalQuickZoneSelect"
+              style="background:var(--surface); border:1px solid var(--ice); color:var(--text); padding:4px 8px; border-radius: 0; font-size:13px; cursor:pointer;"
+              onchange="onModalQuickZoneChange(this.value)">
+            </select>
+            <button class="modal-action-btn" onclick="openZoneManagerFromModal()"
+              style="padding:4px 10px; font-size:12px;" title="管理區域清單">管理區域</button>
+          </div>
+        </div>
+        <div class="modal-actions" id="modalNormalActions">
+          <button class="modal-action-btn gold-btn" id="btnToggleCamFeed">開啟/關閉鏡頭</button>
+          <button class="modal-action-btn gold-btn" id="btnGoToConfig">編輯危險區域</button>
+        </div>
+
+        <div class="modal-actions hidden" id="modalDrawingActions"
+          style="flex-direction: column; align-items: stretch; gap: 12px; width: 100%; border-top: 1px solid var(--border); padding-top: 12px;">
+          <div style="display:flex; justify-content: space-between; align-items:center; flex-wrap: wrap; gap: 10px;">
+            <span style="font-size:14px; color:var(--lime); font-weight:500;"> 編輯模式：點擊上方畫面描繪危險區域頂點</span>
+            <div style="display:flex; gap:10px;">
+              <button class="modal-action-btn" id="btnCancelDrawing">返回一般模式</button>
+              <button class="modal-action-btn" id="btnClearDrawing">清除畫面上的範圍</button>
+              <button class="modal-action-btn danger-btn" id="btnCloseDrawingModal">✕ 關閉視窗</button>
+            </div>
+          </div>
+          <div class="drawing-settings-form"
+            style="display:grid; grid-template-columns: 1fr 1fr 1fr auto; gap:12px; background:var(--surface); padding:12px; border-radius: 0; align-items:center;">
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <input type="text" id="zoneName" placeholder="區域名稱"
+                style="background:transparent; border:none; border-bottom:1px solid var(--border-strong); color:var(--text); padding:6px; font-size:14px;"
+                value="危險區域" list="zoneNameDatalist" />
+              <datalist id="zoneNameDatalist"></datalist>
+            </div>
+            <div style="display: none;">
+              <select id="zoneLevel">
+                <option value="2" selected>高危險區域 (Level 2)</option>
+              </select>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <select id="zoneTime"
+                style="background:transparent; border:none; border-bottom:1px solid var(--border-strong); color:var(--text); padding:6px; font-size:14px;">
+                <option value="僅夜間 22:00–06:00">僅夜間 22:00–06:00</option>
+                <option value="全天生效" selected>全天生效</option>
+                <option value="自訂時段">自訂時段</option>
+              </select>
+              <div id="customTimeContainer" class="hidden"
+                style="display:flex; gap:8px; align-items:center; margin-top:4px;">
+                <input type="time" id="customTimeStart" value="08:00"
+                  style="background:var(--text); border:1px solid var(--ice); color:var(--bg); padding:4px 6px; font-size:13px; border-radius: 0; font-weight:500;" />
+                <span style="color:var(--ice); font-size:14px; font-weight:bold;">-</span>
+                <input type="time" id="customTimeEnd" value="18:00"
+                  style="background:var(--text); border:1px solid var(--ice); color:var(--bg); padding:4px 6px; font-size:13px; border-radius: 0; font-weight:500;" />
+              </div>
+            </div>
+
+            <button class="modal-action-btn gold-btn" id="btnSaveDrawing" style="margin-bottom:0;"> 新增/儲存此區域</button>
+          </div>
+          <div id="modalZoneList" style="display:flex; flex-direction:column; gap:8px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 攝影機資訊與所屬區域設定彈窗 -->
+  <div class="cam-modal-backdrop" id="cameraConfigModal">
+    <div class="cam-modal-window" style="max-width: 520px;">
+      <div class="modal-topbar">
+        <div class="modal-title">
+          <span class="dot-online"></span>
+          <span>攝影機與所屬區域設定</span>
+        </div>
+        <button class="modal-close-btn" onclick="closeCameraConfigModal()" title="關閉視窗">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div style="padding: 24px; display: flex; flex-direction: column; gap: 18px;">
+        <div>
+          <label class="form-label">攝影機名稱</label>
+          <input type="text" id="cfgCamName" class="form-input" placeholder="例如：客廳主鏡頭" />
+        </div>
+
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <label class="form-label" style="margin:0;">所屬監控區域</label>
+            <span style="font-size:12px; color:var(--muted);">下拉選單選擇區域</span>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <select id="cfgCamZoneSelect" class="form-select" style="flex:1;">
+            </select>
+          </div>
+
+          <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+            <button type="button" class="modal-action-btn gold-btn" onclick="promptAddZone()"
+              style="font-size:12px; padding:6px 12px;">新增區域</button>
+            <button type="button" class="modal-action-btn" onclick="promptEditZone()"
+              style="font-size:12px; padding:6px 12px;">編輯名稱</button>
+            <button type="button" class="modal-action-btn danger-btn" onclick="confirmDeleteZone()"
+              style="font-size:12px; padding:6px 12px;">刪除區域</button>
+          </div>
+        </div>
+
+        <div
+          style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; border-top: 1px solid var(--border); padding-top: 16px;">
+          <button class="modal-action-btn" onclick="closeCameraConfigModal()">取消</button>
+          <button class="btn-primary" onclick="saveCameraInfoConfig()">儲存設定</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 系統設定彈窗 -->
+  <div class="cam-modal-backdrop" id="settingsModal">
+    <div class="cam-modal-window" style="max-width: 500px;">
+      <div class="modal-topbar">
+        <div class="modal-title">系統設定</div>
+        <button class="modal-close-btn" onclick="closeSettingsModal()">&times;</button>
+      </div>
+      <div style="padding: 20px;">
+        <div style="margin-bottom: 16px;">
+          <p style="font-size:14px; color:var(--text); line-height:1.5;">系統設定（包含 Discord Webhook
+            URL）已整併至「警報策略與模型設定」頁面中進行統一管理。</p>
+          <p style="font-size:12px; color:var(--muted); margin-top:8px;">請前往該頁面的警報發送區塊進行設定。</p>
+        </div>
+        <div style="text-align: right;">
+          <button class="btn-primary" onclick="closeSettingsModal()">我知道了</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新增攝影機彈窗 -->
+  <div class="cam-modal-backdrop" id="addCameraModal">
+    <div class="cam-modal-window" style="max-width: 650px;">
+      <div class="modal-topbar">
+        <div class="modal-title">
+          <span>新增攝影機</span>
+        </div>
+        <button class="modal-close-btn" onclick="closeAddCameraModal()" title="關閉視窗">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div style="padding: 24px; display: flex; flex-direction: column; gap: 24px;">
+        <div>
+          <h3
+            style="color:var(--ice); font-size: 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+            本機有線攝影機 (自動偵測)
+          </h3>
+          <div id="localCamerasContainer"
+            style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px;">
+            <div style="color: var(--muted); font-size: 14px;">正在掃描可用攝影機...</div>
+          </div>
+        </div>
+
+        <hr style="border: none; border-top: 1px solid var(--border);" />
+
+        <div>
+          <h3
+            style="color:var(--ice); font-size: 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+            無線 IP 攝影機 (手動輸入)
+          </h3>
+          <div style="display: flex; gap: 12px; align-items: flex-start;">
+            <div style="flex: 1;">
+              <input type="text" id="ipCameraInput" class="form-input" placeholder="例如：http://192.168.x.x:4747/video" />
+              <p style="font-size:12px; color:var(--muted); margin-top:8px; margin-bottom: 0;">請輸入您的 IP 攝影機網址或串流位址。</p>
+            </div>
+            <button class="btn-primary" onclick="addIpCamera()">新增</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/shared.js"></script>
+  <script>
+    // ===== 色彩常數（與 CSS 變數一致）=====
+    const COLOR = {
+      lime: "#D8FF5A",
+      limeFill: "rgba(216, 255, 90, 0.28)",
+      coral: "#FF8066",
+      coralFill: "rgba(255, 128, 102, 0.32)",
+      ice: "#78E3F5",
+      muted: "#9A9FB0"
+    };
+
+    // 依警報等級回傳圍籬顏色：二級 = 珊瑚紅，一級 = 螢光黃綠
+    function zoneColors(level) {
+      const isAlert = level === "2";
+      return {
+        stroke: isAlert ? COLOR.coral : COLOR.lime,
+        fill: isAlert ? COLOR.coralFill : COLOR.limeFill
+      };
+    }
+
+    function drawZonePolygon(svg, pointsPercent, level) {
+      const c = zoneColors(level);
+      const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      poly.setAttribute("points", pointsPercent.map(p => `${p.x},${p.y}`).join(" "));
+      poly.setAttribute("fill", c.fill);
+      poly.setAttribute("stroke", c.stroke);
+      poly.setAttribute("stroke-width", "1.5");
+      svg.appendChild(poly);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      renderAllCardsZones();
+    });
+    function toggleMenu() {
+      document.getElementById('hamburgerMenu').classList.toggle('open');
+    }
+
+    document.addEventListener('click', function (e) {
+      const menu = document.getElementById('hamburgerMenu');
+      if (menu && !menu.contains(e.target)) {
+        menu.classList.remove('open');
+      }
+    });
+
+    // ========== 相機串流與互動管理 ==========
+    const modalVideoStream = document.getElementById("modalVideoStream");
+    const modalViewArea = document.getElementById("modalViewArea");
+    const btnToggleCamFeed = document.getElementById("btnToggleCamFeed");
+
+    function renderAllCardsZones() {
+      const savedZones = JSON.parse(localStorage.getItem("edge_vision_zones") || "{}");
+      document.querySelectorAll(".cam-card").forEach(card => {
+        const name = card.getAttribute("data-name");
+        const svg = card.querySelector(".cam-card-svg");
+        if (!svg) return;
+        svg.innerHTML = "";
+
+        const zoneList = savedZones[name];
+        if (zoneList && Array.isArray(zoneList) && zoneList.length > 0) {
+          const latestZone = zoneList[zoneList.length - 1];
+          if (latestZone.pointsPercent && latestZone.pointsPercent.length >= 3) {
+            drawZonePolygon(svg, latestZone.pointsPercent, latestZone.level);
+          }
+        }
+      });
+    }
+
+    let currentSelectedCam = "客廳";
+    let currentCamIndex = 0;
+    let isModalStreaming = false;
+
+    const modal = document.getElementById("camModal");
+    const modalName = document.getElementById("modalCamName");
+    const modalStatus = document.getElementById("modalCamStatus");
+    const modalSvg = document.getElementById("modalSvg");
+    const closeBtn = document.getElementById("modalCloseBtn");
+    const btnGoToConfig = document.getElementById("btnGoToConfig");
+
+    document.querySelectorAll(".cam-card").forEach((card, index) => {
+      card.addEventListener("click", () => {
+        const nameSpan = document.getElementById(`cam-name-${index}`);
+        currentSelectedCam = nameSpan ? nameSpan.innerText : card.getAttribute("data-name");
+        currentCamIndex = index;
+        const status = card.getAttribute("data-status");
+
+        modalName.textContent = currentSelectedCam;
+        modalStatus.textContent = "狀態：" + status;
+
+        const zoneBadge = document.getElementById(`cam-zone-${index}`);
+        const currentZone = zoneBadge ? zoneBadge.innerText.trim() : "浴室門口";
+        const modalZoneBadge = document.getElementById("modalCamZoneBadge");
+        if (modalZoneBadge) modalZoneBadge.textContent = `${currentZone}`;
+        loadZoneOptions(currentZone);
+
+        modalVideoStream.src = `/video_feed/${index}`;
+        modalViewArea.classList.add("is-streaming");
+
+        modalSvg.innerHTML = "";
+        const savedZones = JSON.parse(localStorage.getItem("edge_vision_zones") || "{}");
+        const zoneList = savedZones[currentSelectedCam];
+        if (zoneList && Array.isArray(zoneList) && zoneList.length > 0) {
+          const latestZone = zoneList[zoneList.length - 1];
+          if (latestZone.pointsPercent && latestZone.pointsPercent.length >= 3) {
+            drawZonePolygon(modalSvg, latestZone.pointsPercent, latestZone.level);
+          }
+        }
+
+        const isCardStreaming = card.classList.contains("is-streaming");
+
+        if (isCardStreaming) {
+          modalVideoStream.src = `/video_feed/${currentCamIndex}`;
+          modalViewArea.classList.add("is-streaming");
+          isModalStreaming = true;
+        } else {
+          modalVideoStream.src = "";
+          modalViewArea.classList.remove("is-streaming");
+          isModalStreaming = false;
+        }
+
+        modal.classList.add("open");
+      });
+    });
+
+    btnToggleCamFeed.addEventListener("click", () => {
+      const smallCard = document.querySelectorAll(".cam-card")[currentCamIndex];
+      const smallImg = smallCard.querySelector(".cam-card-video");
+      const newState = !isModalStreaming;
+
+      fetch(`/api/toggle_camera_power/${currentCamIndex}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: newState })
+      }).then(() => {
+        if (!newState) {
+          modalVideoStream.src = "";
+          modalViewArea.classList.remove("is-streaming");
+          smallImg.src = "";
+          smallCard.classList.remove("is-streaming");
+          isModalStreaming = false;
+        } else {
+          modalVideoStream.src = `/video_feed/${currentCamIndex}?t=${Date.now()}`;
+          modalViewArea.classList.add("is-streaming");
+          smallImg.src = `/video_feed/${currentCamIndex}?t=${Date.now()}`;
+          smallCard.classList.add("is-streaming");
+          isModalStreaming = true;
+        }
+      }).catch(err => console.error("Toggle power failed", err));
+    });
+
+    let isDrawingMode = false;
+    let drawingPoints = [];
+
+    const modalNormalActions = document.getElementById("modalNormalActions");
+    const modalDrawingActions = document.getElementById("modalDrawingActions");
+    const btnCancelDrawing = document.getElementById("btnCancelDrawing");
+    const btnClearDrawing = document.getElementById("btnClearDrawing");
+    const btnSaveDrawing = document.getElementById("btnSaveDrawing");
+
+    // 描繪中的圍籬統一使用螢光黃綠
+    function renderModalSvg(points) {
+      modalSvg.innerHTML = "";
+      if (points.length === 0) return;
+
+      const color = COLOR.lime;
+      const fillColor = COLOR.limeFill;
+
+      points.forEach(p => {
+        const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        c.setAttribute("cx", p.x);
+        c.setAttribute("cy", p.y);
+        c.setAttribute("r", 2.5);
+        c.setAttribute("fill", color);
+        modalSvg.appendChild(c);
+      });
+
+      if (points.length > 1) {
+        const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        const pts = points.map(p => `${p.x},${p.y}`).join(" ");
+        poly.setAttribute("points", pts);
+        poly.setAttribute("fill", fillColor);
+        poly.setAttribute("stroke", color);
+        poly.setAttribute("stroke-width", "0.8");
+        modalSvg.appendChild(poly);
+      }
+    }
+
+    btnGoToConfig.addEventListener("click", () => {
+      isDrawingMode = true;
+      modalNormalActions.classList.add("hidden");
+      modalDrawingActions.classList.remove("hidden");
+
+      drawingPoints = [];
+      const savedZones = JSON.parse(localStorage.getItem("edge_vision_zones") || "{}");
+      const zoneList = savedZones[currentSelectedCam];
+      if (zoneList && Array.isArray(zoneList) && zoneList.length > 0) {
+        const latestZone = zoneList[zoneList.length - 1];
+        if (latestZone.pointsPercent) {
+          drawingPoints = [...latestZone.pointsPercent];
+        }
+      }
+      renderModalSvg(drawingPoints);
+      renderZoneList();
+    });
+
+    const zoneTimeSelect = document.getElementById("zoneTime");
+    const customTimeContainer = document.getElementById("customTimeContainer");
+
+    zoneTimeSelect.addEventListener("change", (e) => {
+      if (e.target.value === "自訂時段") {
+        customTimeContainer.classList.remove("hidden");
+      } else {
+        customTimeContainer.classList.add("hidden");
+      }
+    });
+
+    btnCancelDrawing.addEventListener("click", () => {
+      isDrawingMode = false;
+      modalDrawingActions.classList.add("hidden");
+      modalNormalActions.classList.remove("hidden");
+
+      const savedZones = JSON.parse(localStorage.getItem("edge_vision_zones") || "{}");
+      const zoneList = savedZones[currentSelectedCam];
+      modalSvg.innerHTML = "";
+      if (zoneList && Array.isArray(zoneList) && zoneList.length > 0) {
+        const latestZone = zoneList[zoneList.length - 1];
+        if (latestZone.pointsPercent && latestZone.pointsPercent.length >= 3) {
+          drawZonePolygon(modalSvg, latestZone.pointsPercent, latestZone.level);
+        }
+      }
+    });
+
+    btnClearDrawing.addEventListener("click", () => {
+      drawingPoints = [];
+      renderModalSvg(drawingPoints);
+    });
+
+    function renderZoneList() {
+      const zoneListContainer = document.getElementById("modalZoneList");
+      zoneListContainer.innerHTML = "";
+      const savedZones = JSON.parse(localStorage.getItem("edge_vision_zones") || "{}");
+      const list = savedZones[currentSelectedCam];
+      const zone = (list && list.length > 0) ? list[list.length - 1] : null;
+
+      if (!zone || !zone.pointsPercent || zone.pointsPercent.length < 3) {
+        zoneListContainer.innerHTML = `<div style="text-align:center; padding:16px; color:${COLOR.muted}; font-size:13px;">此位置尚未設定任何危險區域</div>`;
+        return;
+      }
+
+      const isAlert = zone.level === "2";
+      const colorStyle = zoneColors(zone.level).stroke;
+      const badgeClass = isAlert ? "orange" : "yellow";
+
+      const item = document.createElement("div");
+      item.style.cssText = "display:flex; justify-content:space-between; align-items:center; background:var(--surface); border:1px solid var(--border); padding:12px; border-radius: 0;";
+      item.innerHTML = `
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="width:12px; height:12px; border-radius:50%; background:${colorStyle}"></span>
+          <span style="color:var(--text); font-size:14px; font-weight:500;">${zone.name}</span>
+          <span class="cam-status-tag ${badgeClass}" style="margin-left:8px;">${zone.time && zone.time.includes("夜間") ? "夜間生效" : "全天生效"}</span>
+          <span class="cam-status-tag ${badgeClass}">${isAlert ? "二級警報" : "一級提示"}</span>
+        </div>
+        <button class="modal-action-btn danger-btn" onclick="handleDeleteZone()">刪除</button>
+      `;
+      zoneListContainer.appendChild(item);
+    }
+
+    window.handleDeleteZone = function () {
+      if (confirm(`確定要刪除此設定嗎？`)) {
+        const all = JSON.parse(localStorage.getItem("edge_vision_zones") || "{}");
+        delete all[currentSelectedCam];
+        localStorage.setItem("edge_vision_zones", JSON.stringify(all));
+
+        drawingPoints = [];
+        renderModalSvg([]);
+        renderZoneList();
+
+        fetch(`/api/set_fence/${currentCamIndex}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pointsPercent: [] })
+        }).catch(err => console.error(err));
+      }
+    };
+
+    btnSaveDrawing.addEventListener("click", () => {
+      if (drawingPoints.length > 0 && drawingPoints.length < 3) {
+        alert("請至少點擊 3 個點或清除重繪以移除危險區域。");
+        return;
+      }
+
+      const name = document.getElementById("zoneName").value.trim() || `${currentSelectedCam}危險區`;
+      let time = document.getElementById("zoneTime").value;
+      if (time === "自訂時段") {
+        const start = document.getElementById("customTimeStart").value;
+        const end = document.getElementById("customTimeEnd").value;
+        time = `自訂時段 ${start}–${end}`;
+      }
+      const level = document.getElementById("zoneLevel").value;
+
+      const all = JSON.parse(localStorage.getItem("edge_vision_zones") || "{}");
+      if (drawingPoints.length >= 3) {
+        const zoneData = {
+          id: "zone-" + Date.now(),
+          name,
+          time,
+          level,
+          pointsPercent: [...drawingPoints]
+        };
+        all[currentSelectedCam] = [zoneData];
+      } else {
+        delete all[currentSelectedCam];
+      }
+      localStorage.setItem("edge_vision_zones", JSON.stringify(all));
+
+      fetch(`/api/set_fence/${currentCamIndex}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pointsPercent: drawingPoints })
+      }).catch(err => console.error("Error setting fence:", err));
+
+      renderZoneList();
+      renderAllCardsZones();
+      alert(`「${name}」設定已更新！`);
+      isDrawingMode = false;
+      modalDrawingActions.classList.add("hidden");
+      modalNormalActions.classList.remove("hidden");
+    });
+
+    modalViewArea.addEventListener("click", (e) => {
+      if (!isDrawingMode) return;
+
+      const rect = modalViewArea.getBoundingClientRect();
+      const px = ((e.clientX - rect.left) / rect.width) * 100;
+      const py = ((e.clientY - rect.top) / rect.height) * 100;
+
+      drawingPoints.push({ x: Number(px.toFixed(2)), y: Number(py.toFixed(2)) });
+      renderModalSvg(drawingPoints);
+    });
+
+    // ====== 彈窗關閉整合函數 ======
+    function closeCamModal() {
+      modal.classList.remove("open");
+      modalVideoStream.src = "";
+      isDrawingMode = false;
+      modalDrawingActions.classList.add("hidden");
+      modalNormalActions.classList.remove("hidden");
+    }
+
+    closeBtn.addEventListener("click", closeCamModal);
+    const btnCloseDrawingModal = document.getElementById("btnCloseDrawingModal");
+    if (btnCloseDrawingModal) {
+      btnCloseDrawingModal.addEventListener("click", closeCamModal);
+    }
+
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) {
+        closeCamModal();
+      }
+      const sModal = document.getElementById("settingsModal");
+      if (e.target === sModal) {
+        closeSettingsModal();
+      }
+      const cModal = document.getElementById("cameraConfigModal");
+      if (e.target === cModal) {
+        closeCameraConfigModal();
+      }
+    });
+
+    // ====== 區域清單管理 ======
+    let availableZones = [];
+
+    async function loadZoneOptions(selectedZone = "") {
+      try {
+        const res = await fetch("/api/zones");
+        const data = await res.json();
+        if (data.zones && Array.isArray(data.zones)) {
+          availableZones = data.zones;
+        }
+      } catch (err) {
+        console.error("無法取得區域清單:", err);
+      }
+
+      const cfgSelect = document.getElementById("cfgCamZoneSelect");
+      if (cfgSelect) {
+        cfgSelect.innerHTML = "";
+        availableZones.forEach(z => {
+          const opt = document.createElement("option");
+          opt.value = z;
+          opt.textContent = `${z}`;
+          if (z === selectedZone) opt.selected = true;
+          cfgSelect.appendChild(opt);
+        });
+      }
+
+      const quickSelect = document.getElementById("modalQuickZoneSelect");
+      if (quickSelect) {
+        quickSelect.innerHTML = "";
+        availableZones.forEach(z => {
+          const opt = document.createElement("option");
+          opt.value = z;
+          opt.textContent = ` ${z}`;
+          if (z === selectedZone) opt.selected = true;
+          quickSelect.appendChild(opt);
+        });
+      }
+
+      const dl = document.getElementById("zoneNameDatalist");
+      if (dl) {
+        dl.innerHTML = "";
+        availableZones.forEach(z => {
+          const opt = document.createElement("option");
+          opt.value = z;
+          dl.appendChild(opt);
+        });
+      }
+    }
+
+    loadZoneOptions();
+
+    function onModalQuickZoneChange(newZone) {
+      if (!newZone) return;
+      fetch(`/api/update_camera/${currentCamIndex}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ zone: newZone })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            const modalZoneBadge = document.getElementById("modalCamZoneBadge");
+            if (modalZoneBadge) modalZoneBadge.textContent = `${newZone}`;
+            const cardZone = document.getElementById(`cam-zone-${currentCamIndex}`);
+            if (cardZone) cardZone.textContent = `${newZone}`;
+          }
+        })
+        .catch(err => console.error(err));
+    }
+
+    function openZoneManagerFromModal() {
+      editCameraInfo(currentCamIndex);
+    }
+
+    async function promptAddZone() {
+      const name = prompt("請輸入欲新增的區域名稱：\n(如：陽台、玄關、廚房、臥室床邊)");
+      if (!name || !name.trim()) return;
+      try {
+        const res = await fetch("/api/zones/add", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ zone: name.trim() })
+        });
+        const data = await res.json();
+        if (data.success) {
+          await loadZoneOptions(name.trim());
+          alert(`已成功新增區域「${name.trim()}」！`);
+        } else {
+          alert(data.error || "新增失敗");
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function promptEditZone() {
+      const selectEl = document.getElementById("cfgCamZoneSelect") || document.getElementById("modalQuickZoneSelect");
+      const currentVal = selectEl ? selectEl.value : "";
+      if (!currentVal) {
+        alert("請先選擇要編輯的區域！");
+        return;
+      }
+      const newName = prompt(`請輸入「${currentVal}」的新名稱：`, currentVal);
+      if (!newName || !newName.trim() || newName.trim() === currentVal) return;
+
+      try {
+        const res = await fetch("/api/zones/edit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ old_zone: currentVal, new_zone: newName.trim() })
+        });
+        const data = await res.json();
+        if (data.success) {
+          await loadZoneOptions(newName.trim());
+          document.querySelectorAll(".cam-zone-badge").forEach(badge => {
+            if (badge.innerText.includes(currentVal)) {
+              badge.innerText = `${newName.trim()}`;
+            }
+          });
+          alert(`區域已重命名為「${newName.trim()}」！`);
+        } else {
+          alert(data.error || "編輯失敗");
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function confirmDeleteZone() {
+      const selectEl = document.getElementById("cfgCamZoneSelect") || document.getElementById("modalQuickZoneSelect");
+      const currentVal = selectEl ? selectEl.value : "";
+      if (!currentVal) {
+        alert("請先選擇要刪除的區域！");
+        return;
+      }
+      if (!confirm(`確定要刪除「${currentVal}」此區域嗎？\n注意：已綁定此區域的攝影機將維持現有名稱。`)) return;
+
+      try {
+        const res = await fetch("/api/zones/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ zone: currentVal })
+        });
+        const data = await res.json();
+        if (data.success) {
+          await loadZoneOptions();
+          alert(`已刪除區域「${currentVal}」！`);
+        } else {
+          alert(data.error || "刪除失敗");
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // ====== 攝影機名稱與區域設定彈窗 ======
+    let currentEditingCamIdx = 0;
+
+    function editCameraInfo(camIdx, event) {
+      if (event) event.stopPropagation();
+      currentEditingCamIdx = camIdx;
+
+      const currentName = document.getElementById(`cam-name-${camIdx}`)?.innerText || `CAM ${camIdx}`;
+      const currentZone = (document.getElementById(`cam-zone-${camIdx}`)?.innerText || "浴室門口").trim();
+
+      document.getElementById("cfgCamName").value = currentName;
+      loadZoneOptions(currentZone);
+
+      document.getElementById("cameraConfigModal").classList.add("open");
+    }
+
+    function closeCameraConfigModal() {
+      document.getElementById("cameraConfigModal").classList.remove("open");
+    }
+
+    function saveCameraInfoConfig() {
+      const newName = document.getElementById("cfgCamName").value.trim() || `CAM ${currentEditingCamIdx}`;
+      const newZone = document.getElementById("cfgCamZoneSelect").value || "浴室門口";
+
+      fetch(`/api/update_camera/${currentEditingCamIdx}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName, zone: newZone })
+      })
+        .then(async res => {
+          const text = await res.text();
+          let data = {};
+          try { data = JSON.parse(text); } catch (e) { /* 後端回的不是 JSON */ }
+          if (!res.ok) throw new Error(`伺服器回應 ${res.status}：${data.error || text.slice(0, 120)}`);
+          if (!data.success) throw new Error(data.error || "後端未回傳 success");
+          return data;
+        })
+        .then(() => {
+          const nameSpan = document.getElementById(`cam-name-${currentEditingCamIdx}`);
+          const zoneSpan = document.getElementById(`cam-zone-${currentEditingCamIdx}`);
+          if (nameSpan) nameSpan.innerText = newName;
+          if (zoneSpan) zoneSpan.innerText = newZone;
+
+          if (currentCamIndex === currentEditingCamIdx) {
+            modalName.textContent = newName;
+            const modalZoneBadge = document.getElementById("modalCamZoneBadge");
+            if (modalZoneBadge) modalZoneBadge.textContent = newZone;
+            const quickSelect = document.getElementById("modalQuickZoneSelect");
+            if (quickSelect) quickSelect.value = newZone;
+          }
+
+          closeCameraConfigModal();
+          alert("攝影機名稱與所屬區域設定已儲存！");
+        })
+        .catch(err => {
+          console.error("更新攝影機資訊失敗:", err);
+          alert("儲存失敗：" + err.message);
+        });
+    }
+
+    // ====== 系統設定 ======
+    function openSettingsModal() {
+      document.getElementById("settingsModal").classList.add("open");
+      fetch("/api/settings")
+        .then(res => res.json())
+        .then(data => {
+          if (data.DISCORD_WEBHOOK_URL) {
+            document.getElementById("discordWebhookInput").value = data.DISCORD_WEBHOOK_URL;
+          }
+        });
+    }
+
+    function closeSettingsModal() {
+      document.getElementById("settingsModal").classList.remove("open");
+    }
+
+    function saveSettings() {
+      const webhook = document.getElementById("discordWebhookInput").value.trim();
+      fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ DISCORD_WEBHOOK_URL: webhook })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            alert("系統設定已儲存！");
+            closeSettingsModal();
+          }
+        })
+        .catch(err => console.error(err));
+    }
+
+    function renameCamera(camIdx, event) {
+      editCameraInfo(camIdx, event);
+    }
+
+    function openAddCameraModal() {
+      document.getElementById("addCameraModal").classList.add("open");
+      fetchAvailableCameras();
+    }
+
+    function closeAddCameraModal() {
+      document.getElementById("addCameraModal").classList.remove("open");
+      document.getElementById("localCamerasContainer").innerHTML = `<div style="color: ${COLOR.muted}; font-size: 14px;">正在掃描可用攝影機...</div>`;
+    }
+
+    document.getElementById("addCameraModal").addEventListener("click", (e) => {
+      if (e.target === document.getElementById("addCameraModal")) {
+        closeAddCameraModal();
+      }
+    });
+
+    function fetchAvailableCameras() {
+      fetch("/api/available_cameras")
+        .then(res => res.json())
+        .then(data => {
+          const container = document.getElementById("localCamerasContainer");
+          container.innerHTML = "";
+
+          if (!data.available || data.available.length === 0) {
+            container.innerHTML = `<div style="color: ${COLOR.coral}; font-size: 14px;">未偵測到可用之本機攝影機。</div>`;
+            return;
+          }
+
+          data.available.forEach(idx => {
+            const card = document.createElement("div");
+            card.style.cssText = "background: var(--surface); border: 1px solid var(--border); border-radius: 0; overflow: hidden; display: flex; flex-direction: column;";
+
+            const img = document.createElement("img");
+            img.src = `/api/preview_camera/${idx}`;
+            img.style.cssText = "width: 100%; height: 120px; object-fit: cover; background: #000;";
+            img.onerror = () => { img.src = ""; img.alt = "無法取得預覽畫面"; };
+
+            const bottom = document.createElement("div");
+            bottom.style.cssText = "padding: 12px; display: flex; justify-content: space-between; align-items: center;";
+
+            const title = document.createElement("span");
+            title.textContent = `攝影機 ${idx}`;
+            title.style.cssText = "color: var(--text); font-weight: bold; font-size: 14px;";
+
+            const btn = document.createElement("button");
+            btn.className = "btn-primary";
+            btn.style.cssText = "padding: 6px 12px; font-size: 12px;";
+            btn.textContent = "新增";
+            btn.onclick = () => addLocalCamera(idx);
+
+            bottom.appendChild(title);
+            bottom.appendChild(btn);
+            card.appendChild(img);
+            card.appendChild(bottom);
+
+            container.appendChild(card);
+          });
+        })
+        .catch(err => {
+          console.error("掃描攝影機失敗:", err);
+          document.getElementById("localCamerasContainer").innerHTML = `<div style="color: ${COLOR.coral}; font-size: 14px;">掃描攝影機失敗。</div>`;
+        });
+    }
+
+    function executeAddCamera(src) {
+      if (src !== null && src.toString().trim() !== "") {
+        fetch("/api/add_camera", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ source: src.toString().trim() })
+        }).then(res => res.json()).then(data => {
+          if (data.success) {
+            alert("攝影機已新增！即將重新載入頁面...");
+            window.location.href = "/monitor";
+          }
+        }).catch(err => console.error("新增攝影機失敗:", err));
+      }
+    }
+
+    function addLocalCamera(idx) {
+      executeAddCamera(idx);
+    }
+
+    function addIpCamera() {
+      const input = document.getElementById("ipCameraInput");
+      const val = input.value;
+      if (!val) {
+        alert("請輸入網址");
+        return;
+      }
+      executeAddCamera(val);
+    }
+
+    function addCamera() {
+      openAddCameraModal();
+    }
+
+    function deleteCamera(camIdx, event) {
+      if (event) event.stopPropagation();
+      if (confirm(`確定要刪除這台攝影機嗎？此操作無法復原。`)) {
+        fetch(`/api/delete_camera/${camIdx}`, {
+          method: "POST",
+        }).then(res => res.json()).then(data => {
+          if (data.success) {
+            alert("攝影機已刪除！即將重新載入頁面...");
+            window.location.href = "/monitor";
+          }
+        }).catch(err => console.error("刪除攝影機失敗:", err));
+      }
+    }
+
+    // 每 3 秒抓取一次後端狀態更新畫面
+    setInterval(() => {
+      if (document.getElementById('view-dashboard').classList.contains('hidden')) return;
+
+      fetch("/status")
+        .then(res => res.json())
+        .then(data => {
+          let onlineCount = 0;
+          let offlineCount = 0;
+
+          for (let i = 0; i < {{ n_cameras }}; i++) {
+      const camData = data[`cam_${i}`];
+      if (!camData) continue;
+
+      const card = document.getElementById(`cam-card-${i}`);
+      const nameSpan = document.getElementById(`cam-name-${i}`);
+      const statusTag = document.getElementById(`cam-status-tag-${i}`);
+      const videoImg = document.getElementById(`cam-video-${i}`);
+
+      if (!card) continue;
+
+      if (camData.name && nameSpan && nameSpan.innerText !== camData.name) {
+        nameSpan.innerText = camData.name;
+      }
+      const zoneSpan = document.getElementById(`cam-zone-${i}`);
+      if (camData.zone && zoneSpan) {
+        const expectedZone = `${camData.zone}`;
+        if (zoneSpan.innerText !== expectedZone) {
+          zoneSpan.innerText = expectedZone;
+        }
+      }
+
+      if (camData.is_privacy_mode) {
+        onlineCount++;
+        videoImg.style.opacity = "1";
+        statusTag.innerHTML = `<span class="dot-online" style="background-color: var(--text); box-shadow: 0 0 8px rgba(245,241,234,0.6);"></span>隱私模式`;
+        statusTag.className = "cam-status-tag";
+        statusTag.style.background = "rgba(245, 241, 234, 0.12)";
+        statusTag.style.color = "var(--text)";
+        statusTag.style.border = "1px solid rgba(245, 241, 234, 0.3)";
+      } else if (camData.is_online) {
+        onlineCount++;
+        videoImg.style.opacity = "1";
+        statusTag.innerHTML = `<span class="dot-online"></span>即時串流`;
+        statusTag.className = "cam-status-tag safe";
+        statusTag.style.background = "";
+        statusTag.style.color = "";
+        statusTag.style.border = "";
+      } else {
+        offlineCount++;
+        videoImg.style.opacity = "0.2";
+        statusTag.innerHTML = `已離線`;
+        statusTag.className = "cam-status-tag";
+        statusTag.style.background = "rgba(255,255,255,0.08)";
+        statusTag.style.color = "var(--muted)";
+        statusTag.style.border = "";
+      }
+      
+      // ===== 處理滯留邊框閃爍 =====
+      if (data.global_settings && data.global_settings.L1_BORDER_BLINK && camData.status && camData.status.is_loitering) {
+        card.classList.add("loitering-blink");
+      } else {
+        card.classList.remove("loitering-blink");
+      }
+    }
+
+    const onCountEl = document.getElementById("onlineCount");
+    const offCountEl = document.getElementById("offlineCount");
+    if (onCountEl) onCountEl.innerText = onlineCount;
+    if (offCountEl) offCountEl.innerText = offlineCount;
+        })
+        .catch (err => console.error("狀態更新失敗:", err));
+    }, 3000);
+
+    // 每 2 秒檢查跌倒狀態
+    setInterval(async () => {
+      try {
+        const response = await fetch('/status');
+        const data = await response.json();
+
+        if (data.cam_0 && data.cam_0.is_falling) {
+          if (!window.hasAlertedForFall) {
+            window.hasAlertedForFall = true;
+            alert("系統偵測到客廳發生跌倒事件！");
+            window.location.href = "跌倒與異常姿態偵測.html";
+          }
+        } else {
+          window.hasAlertedForFall = false;
+        }
+      } catch (e) {
+        console.error("無法取得狀態:", e);
+      }
+    }, 2000);
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,1707 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<script src="/static/js/theme-toggle.js"></script>
+
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>警報設定與 AI 模型中心</title>
+  <link rel="stylesheet" href="/static/css/design-system.css" />
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scrollbar-gutter: stable;
+      /* 預留捲軸位置，換頁時導覽列不會左右跳 */
+      background-color: #101024;
+    }
+
+    body {
+      background: transparent;
+      color: #F5F1EA;
+      font-family: 'PingFang TC', 'PingFang SC', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+      padding: 0 !important;
+      position: relative;
+    }
+
+    /* 固定的深藍漸層背景（與其他頁同一組） */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background:
+        radial-gradient(ellipse at 20% 30%, rgba(120, 227, 245, 0.14), transparent 55%),
+        radial-gradient(ellipse at 80% 75%, rgba(216, 255, 90, 0.07), transparent 55%),
+        linear-gradient(90deg, #101024 0%, #1B2238 22%, #2A3450 50%, #1B2238 78%, #101024 100%);
+    }
+
+    /* 頂部導覽列（隨頁面滾動自然消失，不固定） */
+    .navbar-header {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 1280px;
+      height: auto;
+      background-color: transparent;
+      z-index: 2000;
+      padding: 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-sizing: border-box;
+    }
+
+    .nav-brand {
+      font-size: 20px;
+      color: #F5F1EA;
+      font-weight: bold;
+      text-decoration: none;
+      letter-spacing: 0.05em;
+    }
+
+    /* 漢堡按鈕與選單 */
+    .hamburger-menu-wrapper {
+      position: relative;
+      z-index: 1000;
+    }
+
+    .hamburger-btn {
+      background: rgba(23, 28, 35, 0.6);
+      border: 1.5px solid #78E3F5;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .hamburger-btn:hover {
+      background: rgba(30, 37, 48, 0.75);
+    }
+
+    .hamburger-btn span {
+      display: block;
+      width: 20px;
+      height: 2px;
+      background-color: #78E3F5;
+      transition: 0.3s;
+    }
+
+    .hamburger-menu-wrapper.open .hamburger-btn span:nth-child(1) {
+      transform: translateY(7px) rotate(45deg);
+    }
+
+    .hamburger-menu-wrapper.open .hamburger-btn span:nth-child(2) {
+      opacity: 0;
+    }
+
+    .hamburger-menu-wrapper.open .hamburger-btn span:nth-child(3) {
+      transform: translateY(-7px) rotate(-45deg);
+    }
+
+    .hamburger-dropdown {
+      position: absolute;
+      top: calc(100% + 12px);
+      right: 0;
+      width: 220px;
+      background: rgba(23, 28, 35, 0.8);
+      border: 1.5px solid #78E3F5;
+      display: none;
+      flex-direction: column;
+      z-index: 1000;
+      box-shadow: -4px 12px 32px rgba(0, 0, 0, 0.85);
+    }
+
+    .hamburger-menu-wrapper.open .hamburger-dropdown {
+      display: flex;
+    }
+
+    .dropdown-item {
+      position: relative;
+      padding: 16px 20px;
+      color: #F5F1EA;
+      text-decoration: none;
+      font-size: 15px;
+      border-bottom: 1px solid rgba(245, 241, 234, 0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .dropdown-item:last-child {
+      border-bottom: none;
+    }
+
+    .dropdown-item:hover {
+      background: rgba(120, 227, 245, 0.12);
+      color: #78E3F5;
+    }
+
+    .dropdown-item.active {
+      background: rgba(120, 227, 245, 0.2);
+      color: #78E3F5;
+      font-weight: bold;
+    }
+
+    .dropdown-item.active::after {
+      content: "✓";
+      color: #78E3F5;
+      font-size: 16px;
+    }
+
+    /* 頁面標題與頂部功能列 */
+    .app-shell {
+      width: 100% !important;
+      max-width: 1280px !important;
+      margin: 0 auto !important;
+      padding: 32px !important;
+      padding-top: 80px !important;
+      box-sizing: border-box !important;
+    }
+
+    .header-actions-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .page-title {
+      margin: 0 0 6px 0;
+      font-size: 28px;
+      color: #F5F1EA;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .page-desc {
+      margin: 0;
+      font-size: 14px;
+      color: rgba(245, 241, 234, 0.62);
+      line-height: 1.6;
+      max-width: 680px;
+    }
+
+    .top-btn-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .sync-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: rgba(120, 227, 245, 0.12);
+      border: 1px solid rgba(120, 227, 245, 0.35);
+      color: #78E3F5;
+      border-radius: 0;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .sync-badge .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #78E3F5;
+      box-shadow: 0 0 8px #78E3F5;
+      animation: pulseDot 2s infinite;
+    }
+
+    @keyframes pulseDot {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.4;
+        transform: scale(0.85);
+      }
+    }
+
+    .btn-gold-save {
+      background: #78E3F5;
+      color: #101024;
+      border: none;
+      padding: 10px 22px;
+      font-size: 14px;
+      font-weight: 700;
+      border-radius: 0;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.25s ease;
+      box-shadow: 0 4px 16px rgba(120, 227, 245, 0.25);
+    }
+
+    .btn-gold-save:hover {
+      background: #B4F1FA;
+      box-shadow: 0 6px 20px rgba(120, 227, 245, 0.45);
+      transform: translateY(-2px);
+    }
+
+    .btn-gold-outline {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      border: 1.5px solid #78E3F5;
+      color: #78E3F5;
+      padding: 8px 18px;
+      font-size: 14px;
+      text-decoration: none;
+      border-radius: 0;
+      transition: all 0.2s ease;
+    }
+
+    .btn-gold-outline:hover {
+      background: rgba(120, 227, 245, 0.15);
+      color: #F5F1EA;
+    }
+
+    /* 警報設定卡片網格 */
+    .levels-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+
+    @media (max-width: 980px) {
+      .levels-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .level-card {
+      background: rgba(23, 28, 35, 0.55);
+      border: 1.5px solid rgba(245, 241, 234, 0.12);
+      border-radius: 0;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 20px;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
+      position: relative;
+      transition: border-color 0.2s ease, transform 0.2s ease;
+    }
+
+    .level-card:hover {
+      transform: translateY(-3px);
+    }
+
+    .level-card.l1 {
+      border-top: 4px solid #D8FF5A;
+    }
+
+    .level-card.l2 {
+      border-top: 4px solid #FF8066;
+    }
+
+    .level-card.l3 {
+      border-top: 4px solid #FF8066;
+    }
+
+    .card-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 0;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .card-badge.l1 {
+      background: rgba(216, 255, 90, 0.18);
+      color: #D8FF5A;
+      border: 1px solid rgba(216, 255, 90, 0.4);
+    }
+
+    .card-badge.l2 {
+      background: rgba(255, 128, 102, 0.18);
+      color: #FF8066;
+      border: 1px solid rgba(255, 128, 102, 0.4);
+    }
+
+    .card-badge.l3 {
+      background: rgba(255, 128, 102, 0.18);
+      color: #FF8066;
+      border: 1px solid rgba(255, 128, 102, 0.4);
+    }
+
+    .card-title {
+      font-size: 19px;
+      color: #F5F1EA;
+      font-weight: 700;
+      margin: 0 0 6px 0;
+    }
+
+    .card-subtitle {
+      font-size: 13px;
+      color: rgba(245, 241, 234, 0.62);
+      line-height: 1.5;
+      margin: 0 0 16px 0;
+    }
+
+    /* 設定控制項容器 */
+    .control-group {
+      background: rgba(30, 37, 48, 0.5);
+      border: 1px solid rgba(245, 241, 234, 0.14);
+      border-radius: 0;
+      padding: 14px;
+      margin-bottom: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .control-label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .control-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #F5F1EA;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .value-badge {
+      font-size: 13px;
+      font-weight: 700;
+      color: #78E3F5;
+      background: rgba(120, 227, 245, 0.12);
+      border: 1px solid rgba(120, 227, 245, 0.3);
+      padding: 2px 8px;
+      border-radius: 0;
+    }
+
+    .control-desc {
+      font-size: 12px;
+      color: rgba(245, 241, 234, 0.62);
+      line-height: 1.4;
+    }
+
+    /* 滑桿樣式 */
+    .range-slider {
+      width: 100%;
+      accent-color: #78E3F5;
+      cursor: pointer;
+      margin: 4px 0;
+    }
+
+    /* 開關 Toggle 樣式 */
+    .switch-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+    }
+
+    .switch-title {
+      font-size: 13px;
+      color: #F5F1EA;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider-toggle {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: rgba(245, 241, 234, 0.14);
+      transition: .3s;
+      border-radius: 0;
+      border: 1px solid rgba(245, 241, 234, 0.25);
+    }
+
+    .slider-toggle:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 2px;
+      bottom: 2px;
+      background-color: #F5F1EA;
+      transition: .3s;
+      border-radius: 0;
+    }
+
+    input:checked+.slider-toggle {
+      background-color: #78E3F5;
+      border-color: #78E3F5;
+    }
+
+    input:checked+.slider-toggle:before {
+      transform: translateX(20px);
+      background-color: #101024;
+    }
+
+    /* 選單與輸入框樣式 */
+    .custom-select,
+    .custom-input {
+      width: 100%;
+      background: rgba(23, 28, 35, 0.55);
+      border: 1px solid rgba(245, 241, 234, 0.25);
+      color: #F5F1EA;
+      padding: 8px 12px;
+      border-radius: 0;
+      font-size: 13px;
+      margin-top: 4px;
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+
+    .custom-select:focus,
+    .custom-input:focus {
+      border-color: #78E3F5;
+    }
+
+    /* 選項按鈕群組 (Radio Button Group) */
+    .radio-btn-group {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .radio-pill {
+      flex: 1;
+      text-align: center;
+      padding: 8px 0;
+      background: rgba(23, 28, 35, 0.55);
+      border: 1.5px solid rgba(245, 241, 234, 0.14);
+      color: rgba(245, 241, 234, 0.62);
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 0;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .radio-pill:hover {
+      border-color: rgba(245, 241, 234, 0.25);
+      color: #F5F1EA;
+    }
+
+    .radio-pill.active {
+      background: rgba(120, 227, 245, 0.15);
+      border-color: #78E3F5;
+      color: #78E3F5;
+    }
+
+    /* 模擬測試按鈕 */
+    .btn-simulate {
+      width: 100%;
+      background: rgba(30, 37, 48, 0.5);
+      border: 1.5px solid #78E3F5;
+      color: #78E3F5;
+      padding: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-simulate:hover {
+      background: rgba(120, 227, 245, 0.15);
+      color: #F5F1EA;
+      box-shadow: 0 0 12px rgba(120, 227, 245, 0.3);
+    }
+
+    /* 一級 Toast */
+    .toast-l1 {
+      position: fixed;
+      top: 90px;
+      right: 24px;
+      z-index: 1500;
+      width: 320px;
+      background: rgba(23, 28, 35, 0.85);
+      border-left: 4px solid #D8FF5A;
+      border-top: 1px solid rgba(245, 241, 234, 0.12);
+      border-right: 1px solid rgba(245, 241, 234, 0.12);
+      border-bottom: 1px solid rgba(245, 241, 234, 0.12);
+      border-radius: 0;
+      padding: 16px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7);
+      transform: translateX(130%);
+      transition: transform 300ms ease;
+    }
+
+    .toast-l1.show {
+      transform: translateX(0);
+    }
+
+    /* 彈窗覆蓋層 */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(16, 16, 36, 0.85);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      padding: 20px;
+      backdrop-filter: blur(8px);
+    }
+
+    .overlay.is-open {
+      display: flex;
+    }
+
+    .alert-panel {
+      position: relative;
+      width: min(460px, 100%);
+      background: rgba(23, 28, 35, 0.55);
+      border-radius: 0;
+      padding: 30px;
+      text-align: center;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.85);
+    }
+
+    .alert-panel.l2 {
+      border: 1.5px solid #FF8066;
+    }
+
+    .alert-panel.l3 {
+      border: 1.5px solid #FF8066;
+    }
+
+    .modal-close-cross {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 32px;
+      height: 32px;
+      background: transparent;
+      border: 1px solid rgba(245, 241, 234, 0.25);
+      color: rgba(245, 241, 234, 0.62);
+      font-size: 16px;
+      border-radius: 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .modal-close-cross:hover {
+      border-color: #78E3F5;
+      color: #F5F1EA;
+      background: rgba(120, 227, 245, 0.1);
+    }
+
+    .ring-wrap {
+      position: relative;
+      width: 140px;
+      height: 140px;
+      margin: 16px auto 20px;
+    }
+
+    .ring-wrap svg {
+      transform: rotate(-90deg);
+    }
+
+    .ring-track {
+      fill: none;
+      stroke: rgba(245, 241, 234, 0.12);
+      stroke-width: 8;
+    }
+
+    .ring-progress {
+      fill: none;
+      stroke: #FF8066;
+      stroke-width: 8;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 1s linear;
+    }
+
+    .ring-number {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      color: #F5F1EA;
+      font-weight: bold;
+    }
+
+    .status-line {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 0;
+      background: rgba(10, 10, 24, 0.5);
+      font-size: 13px;
+      margin-bottom: 8px;
+      text-align: left;
+      color: #F5F1EA;
+      border: 1px solid rgba(245, 241, 234, 0.12);
+    }
+
+    .status-line .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(245, 241, 234, 0.62);
+      flex-shrink: 0;
+    }
+
+    .status-line.done .dot {
+      background: #78E3F5;
+      box-shadow: 0 0 8px #78E3F5;
+    }
+
+    .spinner {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 2px solid #FF8066;
+      border-top-color: transparent;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* 儲存成功反饋 Toast */
+    #saveFeedbackToast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: rgba(23, 28, 35, 0.55);
+      border: 1.5px solid #78E3F5;
+      color: #78E3F5;
+      padding: 12px 24px;
+      border-radius: 0;
+      font-size: 14px;
+      font-weight: bold;
+      z-index: 3000;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+      transition: transform 0.3s ease-out;
+    }
+
+    #saveFeedbackToast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* 統計分析與進階微調區塊 */
+    .analytics-section-header {
+      margin: 44px 0 20px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      gap: 16px;
+      border-top: 1px solid rgba(245, 241, 234, 0.12);
+      padding-top: 32px;
+    }
+
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+
+    @media (max-width: 980px) {
+      .analytics-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .analysis-card {
+      background: rgba(23, 28, 35, 0.55);
+      border: 1.5px solid rgba(245, 241, 234, 0.12);
+      border-radius: 0;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 16px;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .analysis-card:hover {
+      transform: translateY(-3px);
+    }
+
+    .analysis-card.gold-top {
+      border-top: 4px solid #78E3F5;
+    }
+
+    .analysis-card.cyan-top {
+      border-top: 4px solid #D8FF5A;
+    }
+
+    .analysis-card.purple-top {
+      border-top: 4px solid #78E3F5;
+    }
+
+    /* 24小時時段直方圖 */
+    .hour-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      height: 130px;
+      padding: 10px 0 20px 0;
+      border-bottom: 1px solid rgba(245, 241, 234, 0.12);
+      margin-bottom: 12px;
+    }
+
+    .hour-bar-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100%;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+
+    .hour-bar-val {
+      font-size: 11px;
+      color: rgba(245, 241, 234, 0.62);
+      font-weight: bold;
+    }
+
+    .hour-bar {
+      width: 100%;
+      background: rgba(245, 241, 234, 0.12);
+      border-radius: 0 0 0;
+      transition: height 0.5s ease, background 0.3s;
+      min-height: 6px;
+    }
+
+    .hour-bar.peak {
+      background: linear-gradient(180deg, #FF8066 0%, #78E3F5 100%);
+      box-shadow: 0 0 10px rgba(255, 128, 102, 0.35);
+    }
+
+    .hour-label {
+      font-size: 11px;
+      color: rgba(245, 241, 234, 0.62);
+      white-space: nowrap;
+    }
+
+    .chart-alert-tip {
+      font-size: 12px;
+      color: #78E3F5;
+      background: rgba(120, 227, 245, 0.08);
+      border: 1px solid rgba(120, 227, 245, 0.25);
+      padding: 10px 14px;
+      border-radius: 0;
+      line-height: 1.5;
+    }
+
+    /* 區域分布長條 */
+    .zone-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .zone-row {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .zone-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+    }
+
+    .zone-track {
+      width: 100%;
+      height: 7px;
+      background: rgba(245, 241, 234, 0.08);
+      border-radius: 0;
+      overflow: hidden;
+    }
+
+    .zone-fill {
+      height: 100%;
+      background: #78E3F5;
+      border-radius: 0;
+      transition: width 0.6s ease;
+    }
+
+    .zone-fill.high {
+      background: #FF8066;
+      box-shadow: 0 0 8px rgba(255, 128, 102, 0.4);
+    }
+
+    /* ===== 直角 + 半透明玻璃感 ===== */
+    .hamburger-btn,
+    .hamburger-dropdown,
+    .level-card,
+    .analysis-card,
+    .toast-l1,
+    .alert-panel,
+    #saveFeedbackToast,
+    .btn-gold-outline,
+    .btn-simulate {
+      backdrop-filter: blur(12px) saturate(1.2);
+      -webkit-backdrop-filter: blur(12px) saturate(1.2);
+    }
+
+    .btn-gold-save {
+      color: #101024;
+      box-shadow: 0 4px 16px rgba(120, 227, 245, 0.25);
+    }
+
+    select option {
+      background: #171C23;
+      color: #F5F1EA;
+    }
+  </style>
+</head>
+
+<body data-nav-active="09">
+
+  <!-- 頂部導覽列 -->
+  <header class="navbar-header">
+    <a href="/monitor" class="brand" title="回到即時監看"><span class="brand-name">EDGE-<b>VISION</b></span></a>
+
+    <div class="hamburger-menu-wrapper" id="hamburgerMenu">
+      <button class="hamburger-btn" onclick="toggleMenu()" aria-label="選單">
+        <span></span><span></span><span></span>
+      </button>
+
+      <div class="hamburger-dropdown">
+        <a href="/monitor" class="dropdown-item" data-tooltip="返回九宮格即時監看畫面">即時監看</a>
+        <a href="跌倒與異常姿態偵測.html" class="dropdown-item" data-tooltip="跌倒事件歷史紀錄與黑盒子覆盤">歷史紀錄</a>
+        <a href="隱私模式開關.html" class="dropdown-item" data-tooltip="暫時遮蔽鏡頭保護私密時刻">隱私模式</a>
+        <a href="三階段警報.html" class="dropdown-item active" data-tooltip="三階段警報策略與 AI 模型設定">系統設定</a>
+
+        <a href="/" class="dropdown-item" data-tooltip="重新挑選照顧者或長輩身分">返回身分選擇</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="app-shell">
+    <div class="header-actions-row">
+      <div>
+        <h1 class="page-title">警報設定與 AI 模型中心</h1>
+        <p class="page-desc">
+          依據照護場域需求，即時調整邊緣 AI 跌倒模型敏感度、異常姿態確認秒數與各級推播通知管道。
+        </p>
+      </div>
+
+      <div class="top-btn-group">
+        <div class="sync-badge" id="syncStatusBadge">
+          <span class="dot"></span>
+          <span id="syncStatusText">邊緣 AI 核心同步中</span>
+        </div>
+        <button class="btn-gold-save" onclick="saveAllSettings()">
+          儲存並即時套用
+        </button>
+        <a class="btn-gold-outline" href="跌倒與異常姿態偵測.html">
+          歷史紀錄 →
+        </a>
+      </div>
+    </div>
+
+    <!-- 三階段設定卡片網格 -->
+    <div class="levels-grid">
+
+      <!-- ====== 第一級卡片：輕度預警 ====== -->
+      <div class="level-card l1">
+        <div>
+
+          <h2 class="card-title">異常滯留監測</h2>
+          <p class="card-subtitle">當偵測到浴室、廚房等高風險區長時間靜止或滯留時發出微警示。</p>
+
+          <div class="control-group">
+            <div class="control-label-row">
+              <span class="control-label">滯留判定時長</span>
+              <span class="value-badge" id="lblStationaryMinutes">10 分鐘</span>
+            </div>
+            <input type="range" class="range-slider" id="cfgStationaryMinutes" min="1" max="30" step="1" value="10"
+              oninput="updateStationaryLabel(this.value)" />
+            <div class="control-desc">長輩在特定空間靜止無位移超過此時間即觸發提示。</div>
+          </div>
+
+          <div class="control-group">
+            <div class="control-label-row" style="margin-bottom:6px;">
+              <span class="control-label">滯留預警通知管道</span>
+            </div>
+            <div class="switch-row">
+              <span class="switch-title">監看畫面的閃爍</span>
+              <label class="switch">
+                <input type="checkbox" id="cfgL1BorderBlink" checked />
+                <span class="slider-toggle"></span>
+              </label>
+            </div>
+            <div class="switch-row">
+              <span class="switch-title">Discord通知</span>
+              <label class="switch">
+                <input type="checkbox" id="cfgL1PushNotif" checked />
+                <span class="slider-toggle"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====== 第二級卡片：中度警報 (模型敏感度與通知策略) ====== -->
+      <div class="level-card l2">
+        <div>
+
+          <h2 class="card-title">跌倒偵測模型與通知</h2>
+          <p class="card-subtitle">深度學習跌倒模型判定門檻與警報發送策略調校。</p>
+
+          <!-- 模型敏感度 -->
+          <div class="control-group">
+            <div class="control-label-row">
+              <span class="control-label">AI 模型敏感度 (置信度)</span>
+              <span class="value-badge" id="lblFallConf">0.35</span>
+            </div>
+            <input type="range" class="range-slider" id="cfgFallConf" min="20" max="80" step="1" value="35"
+              oninput="updateConfLabel(this.value)" />
+            <div class="control-desc">低數值靈敏捕獲輕微跌倒；高數值防誤報，提高判定準確度。</div>
+          </div>
+
+          <!-- 異常姿態確認秒數 -->
+          <div class="control-group">
+            <div class="control-label-row">
+              <span class="control-label">姿態確認秒數 (防誤判)</span>
+              <span class="value-badge" id="lblFallSec">2.0 秒</span>
+            </div>
+            <input type="range" class="range-slider" id="cfgFallSec" min="1.0" max="5.0" step="0.5" value="2.0"
+              oninput="updateSecLabel(this.value)" />
+            <div class="control-desc">連續維持跌倒姿態達此秒數才確診，防止彎腰、撿東西誤判。</div>
+          </div>
+
+          <!-- 通知開關 -->
+          <div class="control-group">
+            <div class="control-label-row" style="margin-bottom:6px;">
+              <span class="control-label">警報發送策略</span>
+            </div>
+            <div class="switch-row">
+              <span class="switch-title">跌倒事件發送通知</span>
+              <label class="switch">
+                <input type="checkbox" id="cfgEnableFallNotif" checked />
+                <span class="slider-toggle"></span>
+              </label>
+            </div>
+            <div class="switch-row">
+              <span class="switch-title">危險區域越界發送通知</span>
+              <label class="switch">
+                <input type="checkbox" id="cfgEnableIntrusionNotif" checked />
+                <span class="slider-toggle"></span>
+              </label>
+            </div>
+            <div class="switch-row">
+              <span class="switch-title">附帶現場即時快照截圖</span>
+              <label class="switch">
+                <input type="checkbox" id="cfgIncludeSnapshot" checked />
+                <span class="slider-toggle"></span>
+              </label>
+            </div>
+            <div class="switch-row">
+              <span class="switch-title">錄製 30 秒事件精華錄影</span>
+              <label class="switch">
+                <input type="checkbox" id="cfgIncludeVideo" checked />
+                <span class="slider-toggle"></span>
+              </label>
+            </div>
+
+            <div style="border-top: 1px solid rgba(245, 241, 234, 0.14); margin-top: 12px; padding-top: 12px;">
+              <div class="control-label-row" style="margin-bottom: 6px;">
+                <span class="control-label" style="font-size: 13px;">Discord Webhook URL</span>
+              </div>
+              <input type="text" class="custom-input" id="cfgDiscordWebhook"
+                placeholder="https://discord.com/api/webhooks/..." />
+              <div class="control-desc" style="margin-top: 6px;">警報觸發時將會傳送通知與截圖到此頻道。</div>
+            </div>
+          </div>
+
+          <!-- 警報冷卻時間 -->
+          <div class="control-group">
+            <div class="control-label-row">
+              <span class="control-label">警報冷卻時間 (防重複洗版)</span>
+            </div>
+            <select class="custom-select" id="cfgAlertCooldown">
+              <option value="15">15 秒</option>
+              <option value="30" selected>30 秒 (建議)</option>
+              <option value="60">60 秒</option>
+              <option value="120">120 秒</option>
+            </select>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- 統計分析與進階防誤判微調區塊 -->
+    <div class="analytics-section-header">
+      <div>
+        <h2 style="margin: 0 0 6px 0; font-size: 24px; color: #F5F1EA; font-weight: 700;">
+          邊緣 AI 統計分析
+        </h2>
+        <p style="margin: 0; font-size: 14px; color: rgba(245, 241, 234, 0.62); line-height: 1.5;">
+          結合黑盒子事件時段規律與空間熱區，精準調校姿態判定與防誤判參數。
+        </p>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button class="btn-simulate" onclick="refreshAnalyticsData()"
+          style="width:auto; padding:8px 16px; font-size:13px;">
+          重新整理統計
+        </button>
+      </div>
+    </div>
+
+    <div class="analytics-grid">
+      <!-- 卡片 1：24 小時事件發生時段統計 -->
+      <div class="analysis-card gold-top">
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="card-badge l1"
+              style="background:rgba(120,227,245,0.15); color:#78E3F5; border-color:rgba(120,227,245,0.3); margin-bottom:0;">
+              時段熱區分析
+            </span>
+            <span style="font-size:11px; color:#78E3F5; font-weight:600;">資料庫已連線</span>
+          </div>
+          <h3 class="card-title" style="font-size:18px; margin-top:8px;">24 小時事件發生時段統計</h3>
+          <div style="font-size:11px; color:rgba(245, 241, 234, 0.62); margin-bottom:12px;">
+            資料庫來源：<code>event_videos / 歷史事件紀錄</code>
+          </div>
+
+          <div class="hour-chart" id="hourChartContainer">
+            <div class="hour-bar-wrap">
+              <span class="hour-bar-val" id="valSlot0">0</span>
+              <div class="hour-bar" id="barSlot0" style="height: 6%;"></div>
+              <span class="hour-label">00-04</span>
+            </div>
+            <div class="hour-bar-wrap">
+              <span class="hour-bar-val" id="valSlot1">0</span>
+              <div class="hour-bar" id="barSlot1" style="height: 6%;"></div>
+              <span class="hour-label">04-08</span>
+            </div>
+            <div class="hour-bar-wrap">
+              <span class="hour-bar-val" id="valSlot2">0</span>
+              <div class="hour-bar" id="barSlot2" style="height: 6%;"></div>
+              <span class="hour-label">08-12</span>
+            </div>
+            <div class="hour-bar-wrap">
+              <span class="hour-bar-val" id="valSlot3">0</span>
+              <div class="hour-bar" id="barSlot3" style="height: 6%;"></div>
+              <span class="hour-label">12-16</span>
+            </div>
+            <div class="hour-bar-wrap">
+              <span class="hour-bar-val" id="valSlot4">0</span>
+              <div class="hour-bar" id="barSlot4" style="height: 6%;"></div>
+              <span class="hour-label">16-20</span>
+            </div>
+            <div class="hour-bar-wrap">
+              <span class="hour-bar-val" id="valSlot5">0</span>
+              <div class="hour-bar" id="barSlot5" style="height: 6%;"></div>
+              <span class="hour-label">20-24</span>
+            </div>
+          </div>
+
+          <div class="chart-alert-tip" id="hourAlertTip">
+            <strong>時段警示：</strong>清晨 04:00～08:00 為長輩起床如廁高峰，請注意走道防滑與夜燈照明。
+          </div>
+        </div>
+
+        <div
+          style="font-size: 12px; color: rgba(245, 241, 234, 0.62); display: flex; justify-content: space-between; border-top: 1px solid rgba(245, 241, 234, 0.12); padding-top: 12px;">
+          <span>累計分析事件：<strong id="statTotalEvents" style="color:#F5F1EA;">0</strong> 件</span>
+          <span>高峰時段：<strong id="statPeakHour" style="color:#FF8066;">尚無事件</strong></span>
+        </div>
+      </div>
+
+      <!-- 卡片 2：跌倒區域次數分析 -->
+      <div class="analysis-card cyan-top">
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="card-badge l2"
+              style="background:rgba(216,255,90,0.15); color:#D8FF5A; border-color:rgba(216,255,90,0.3); margin-bottom:0;">
+              跌倒熱區統計
+            </span>
+            <span style="font-size:11px; color:#78E3F5; font-weight:600;">資料庫已連線</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+            <h3 class="card-title" style="font-size:18px; margin:0;">跌倒區域次數分析</h3>
+            <button class="btn-simulate" onclick="resetZoneAnalyticsData()"
+              style="width: auto; padding: 4px 10px; font-size: 11px; border-color: #D8FF5A; color: #D8FF5A; margin: 0;">
+              重新累計
+            </button>
+          </div>
+          <div style="font-size:11px; color:rgba(245, 241, 234, 0.62); margin-bottom:12px;">
+            資料庫來源：<code>event_videos · zones.json · cameras.json</code>
+          </div>
+
+          <div class="zone-list" id="zoneListContainer">
+            <div style="text-align:center; padding:20px; color:rgba(245, 241, 234, 0.62); font-size:13px;">
+              正在載入各區域跌倒次數統計...</div>
+          </div>
+        </div>
+
+        <div>
+          <div
+            style="background: rgba(30, 37, 48, 0.5); border: 1px solid rgba(245, 241, 234, 0.14); border-radius: 0; padding: 12px 14px; font-size: 12px; color: rgba(245, 241, 234, 0.62);">
+            <strong>跌倒好發區域：</strong><span id="highestRiskZoneName"
+              style="color:#FF8066; font-weight:bold;">目前無跌倒紀錄</span>
+            <span id="highestRiskZonePct" style="margin-left:6px; color:#78E3F5;">(各空間狀態安全良好)</span>
+          </div>
+        </div>
+
+      </div>
+
+
+    </div>
+  </div>
+
+  <!-- 一級 Toast 提示 -->
+  <div class="toast-l1" id="toastL1">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <strong style="color: #D8FF5A; font-size: 13px;">滯留微警示提示</strong>
+      <span style="font-size:11px; color:rgba(245, 241, 234, 0.62);">剛剛</span>
+    </div>
+    <div id="toastL1Msg" style="font-size: 13px; margin-top: 8px; color:#F5F1EA; line-height:1.5;">
+      浴室已滯留 10 分鐘，請確認長輩活動狀態。
+    </div>
+    <div style="margin-top: 12px; display:flex; justify-content:flex-end;">
+      <button class="btn-simulate" onclick="hideToast()"
+        style="width:auto; padding:4px 12px; font-size:12px;">我知道了</button>
+    </div>
+  </div>
+
+  <!-- 二級警報全螢幕彈窗 (動態倒數) -->
+  <div class="overlay" id="overlayL2">
+    <div class="alert-panel l2">
+      <button class="modal-close-cross" id="closeL2Cross" title="關閉">✕</button>
+
+      <span class="card-badge l2" style="margin-bottom:12px;">橙色跌倒警報</span>
+      <h2 style="color:#F5F1EA; margin:0 0 6px 0; font-size:22px;">偵測到長輩異常跌倒</h2>
+      <p style="color:rgba(245, 241, 234, 0.62); font-size:13px; margin-bottom:14px;">客廳走道 · 跌倒模型置信度高達 <span
+          id="modalL2Conf" style="color:#FF8066; font-weight:bold;">0.92</span></p>
+
+      <div
+        style="aspect-ratio:16/9; border-radius: 0; background:rgba(10, 10, 24, 0.45); margin-bottom:14px; display:flex; align-items:center; justify-content:center; border:1px solid rgba(245, 241, 234, 0.14);">
+        <span style="color:rgba(245, 241, 234, 0.62); font-size:13px;">跌倒瞬間快照已捕獲</span>
+      </div>
+
+      <div class="ring-wrap">
+        <svg width="140" height="140">
+          <circle class="ring-track" cx="70" cy="70" r="58"></circle>
+          <circle class="ring-progress" id="ringProgress" cx="70" cy="70" r="58"></circle>
+        </svg>
+        <div class="ring-number" id="ringNumber">15</div>
+      </div>
+
+      <p style="color:rgba(245, 241, 234, 0.62); font-size:13px; margin-bottom:18px;">
+        倒數結束若未手動取消，系統將自動發送警報推播並保存現場事件紀錄。
+      </p>
+
+      <button class="btn-simulate" id="cancelL2"
+        style="background:rgba(30, 37, 48, 0.6); padding:12px; font-size:14px;">
+        狀況安全，手動取消警報
+      </button>
+    </div>
+  </div>
+
+  <!-- 儲存成功反饋 Toast -->
+  <div id="saveFeedbackToast">
+    警報策略與 AI 模型設定已儲存並即時生效！
+  </div>
+
+  <script src="/static/js/shared.js"></script>
+  <script>
+    function toggleMenu() {
+      document.getElementById('hamburgerMenu').classList.toggle('open');
+    }
+    document.addEventListener('click', function (e) {
+      const menu = document.getElementById('hamburgerMenu');
+      if (menu && !menu.contains(e.target)) {
+        menu.classList.remove('open');
+      }
+    });
+
+    // 全域設定物件快取
+    let currentSettings = {
+      FALL_CONF_THRESHOLD: 0.35,
+      FALL_CONFIRM_SECONDS: 2.0,
+      DEBOUNCE_ASPECT_RATIO: 1.25,
+      DEBOUNCE_TILT_ANGLE: 60,
+      STATIONARY_MINUTES: 10,
+      ENABLE_FALL_NOTIF: true,
+      ENABLE_INTRUSION_NOTIF: true,
+      INCLUDE_SNAPSHOT: true,
+      INCLUDE_VIDEO: true,
+      ALERT_COOLDOWN_SECONDS: 30,
+      DISCORD_WEBHOOK_URL: ""
+    };
+
+    // ====== 載入後端真實設定 ======
+    function loadSettings() {
+      fetch('/api/settings')
+        .then(res => res.json())
+        .then(settings => {
+          currentSettings = Object.assign({}, currentSettings, settings);
+          populateUI(currentSettings);
+          document.getElementById("syncStatusText").textContent = "邊緣 AI 核心已同步 (" + new Date().toLocaleTimeString() + ")";
+        })
+        .catch(err => {
+          console.error("載入設定失敗:", err);
+          document.getElementById("syncStatusText").textContent = "同步異常，使用離線設定";
+        })
+        .finally(() => {
+          refreshAnalyticsData();
+        });
+    }
+
+    // ====== 將設定填入 UI 表單 ======
+    function populateUI(s) {
+      // 1. 一級
+      if (s.STATIONARY_MINUTES !== undefined) {
+        document.getElementById("cfgStationaryMinutes").value = s.STATIONARY_MINUTES;
+        updateStationaryLabel(s.STATIONARY_MINUTES);
+      }
+      // 2. 二級
+      if (s.FALL_CONF_THRESHOLD !== undefined) {
+        const confVal = Math.round(s.FALL_CONF_THRESHOLD * 100);
+        document.getElementById("cfgFallConf").value = confVal;
+        updateConfLabel(confVal);
+      }
+      if (s.FALL_CONFIRM_SECONDS !== undefined) {
+        document.getElementById("cfgFallSec").value = s.FALL_CONFIRM_SECONDS;
+        updateSecLabel(s.FALL_CONFIRM_SECONDS);
+        const dSec = document.getElementById("cfgDebounceSec");
+        if (dSec) dSec.value = s.FALL_CONFIRM_SECONDS;
+        const dLbl = document.getElementById("lblDebounceSec");
+        if (dLbl) dLbl.textContent = `${parseFloat(s.FALL_CONFIRM_SECONDS).toFixed(1)} 秒`;
+      }
+      if (s.DEBOUNCE_ASPECT_RATIO !== undefined) {
+        const ar = document.getElementById("cfgAspectRatio");
+        if (ar) ar.value = s.DEBOUNCE_ASPECT_RATIO;
+        updateAspectRatioLabel(s.DEBOUNCE_ASPECT_RATIO);
+      }
+      if (s.DEBOUNCE_TILT_ANGLE !== undefined) {
+        const ta = document.getElementById("cfgTiltAngle");
+        if (ta) ta.value = s.DEBOUNCE_TILT_ANGLE;
+        updateTiltAngleLabel(s.DEBOUNCE_TILT_ANGLE);
+      }
+      if (s.ENABLE_FALL_NOTIF !== undefined) {
+        document.getElementById("cfgEnableFallNotif").checked = !!s.ENABLE_FALL_NOTIF;
+      }
+      if (s.ENABLE_INTRUSION_NOTIF !== undefined) {
+        document.getElementById("cfgEnableIntrusionNotif").checked = !!s.ENABLE_INTRUSION_NOTIF;
+      }
+      if (s.INCLUDE_SNAPSHOT !== undefined) {
+        document.getElementById("cfgIncludeSnapshot").checked = !!s.INCLUDE_SNAPSHOT;
+      }
+      if (s.INCLUDE_VIDEO !== undefined) {
+        document.getElementById("cfgIncludeVideo").checked = !!s.INCLUDE_VIDEO;
+      }
+      if (s.ALERT_COOLDOWN_SECONDS !== undefined) {
+        document.getElementById("cfgAlertCooldown").value = s.ALERT_COOLDOWN_SECONDS;
+      }
+      if (s.DISCORD_WEBHOOK_URL !== undefined) {
+        const webhookInput = document.getElementById("cfgDiscordWebhook");
+        if (webhookInput) webhookInput.value = s.DISCORD_WEBHOOK_URL;
+      }
+    }
+
+    // ====== 即時滑桿數值文字更新 ======
+    function updateStationaryLabel(val) {
+      document.getElementById("lblStationaryMinutes").textContent = `${val} 分鐘`;
+    }
+    function updateConfLabel(val) {
+      document.getElementById("lblFallConf").textContent = (val / 100).toFixed(2);
+    }
+    function updateSecLabel(val) {
+      document.getElementById("lblFallSec").textContent = `${parseFloat(val).toFixed(1)} 秒`;
+      const dSec = document.getElementById("cfgDebounceSec");
+      const dLbl = document.getElementById("lblDebounceSec");
+      if (dSec) dSec.value = val;
+      if (dLbl) dLbl.textContent = `${parseFloat(val).toFixed(1)} 秒`;
+      currentSettings.FALL_CONFIRM_SECONDS = parseFloat(val);
+    }
+
+    // ====== 姿態防誤判微調控制函式 ======
+    function syncDebounceSec(val) {
+      document.getElementById("lblDebounceSec").textContent = `${parseFloat(val).toFixed(1)} 秒`;
+      const fSec = document.getElementById("cfgFallSec");
+      const fLbl = document.getElementById("lblFallSec");
+      if (fSec) fSec.value = val;
+      if (fLbl) fLbl.textContent = `${parseFloat(val).toFixed(1)} 秒`;
+      currentSettings.FALL_CONFIRM_SECONDS = parseFloat(val);
+    }
+
+    function updateAspectRatioLabel(val) {
+      const el = document.getElementById("lblAspectRatio");
+      if (el) el.textContent = parseFloat(val).toFixed(2);
+      currentSettings.DEBOUNCE_ASPECT_RATIO = parseFloat(val);
+    }
+
+    function updateTiltAngleLabel(val) {
+      const el = document.getElementById("lblTiltAngle");
+      if (el) el.textContent = `${val}°`;
+      currentSettings.DEBOUNCE_TILT_ANGLE = parseInt(val);
+    }
+
+    function saveDebounceSettings() {
+      saveAllSettings();
+    }
+
+
+
+    // ====== 儲存所有設定到後端 ======
+    function saveAllSettings() {
+      const payload = {
+        STATIONARY_MINUTES: parseInt(document.getElementById("cfgStationaryMinutes").value),
+        FALL_CONF_THRESHOLD: parseFloat((document.getElementById("cfgFallConf").value / 100).toFixed(2)),
+        FALL_CONFIRM_SECONDS: parseFloat(document.getElementById("cfgFallSec").value),
+        DEBOUNCE_ASPECT_RATIO: parseFloat(document.getElementById("cfgAspectRatio") ? document.getElementById("cfgAspectRatio").value : (currentSettings.DEBOUNCE_ASPECT_RATIO || 1.25)),
+        DEBOUNCE_TILT_ANGLE: parseInt(document.getElementById("cfgTiltAngle") ? document.getElementById("cfgTiltAngle").value : (currentSettings.DEBOUNCE_TILT_ANGLE || 60)),
+        ENABLE_FALL_NOTIF: document.getElementById("cfgEnableFallNotif").checked,
+        ENABLE_INTRUSION_NOTIF: document.getElementById("cfgEnableIntrusionNotif").checked,
+        INCLUDE_SNAPSHOT: document.getElementById("cfgIncludeSnapshot").checked,
+        INCLUDE_VIDEO: document.getElementById("cfgIncludeVideo").checked,
+        ALERT_COOLDOWN_SECONDS: parseInt(document.getElementById("cfgAlertCooldown").value),
+        DISCORD_WEBHOOK_URL: document.getElementById("cfgDiscordWebhook") ? document.getElementById("cfgDiscordWebhook").value.trim() : ""
+      };
+
+      fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            currentSettings = Object.assign({}, currentSettings, data.settings);
+            document.getElementById("syncStatusText").textContent = "邊緣 AI 核心已同步 (" + new Date().toLocaleTimeString() + ")";
+            showSaveToast();
+          } else {
+            alert("儲存失敗，請檢查網路連線。");
+          }
+        })
+        .catch(err => {
+          console.error("儲存設定失敗:", err);
+          alert("儲存設定發生錯誤。");
+        });
+    }
+
+    // ====== 載入與計算統計資料 (24 小時時段統計與區域分布，連接實體資料庫) ======
+    function resetZoneAnalyticsData() {
+      if (!confirm("確定要將跌倒區域的累計次數歸零嗎？")) return;
+      fetch('/api/records/reset_zones', { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            refreshAnalyticsData();
+          } else {
+            alert("歸零失敗");
+          }
+        })
+        .catch(err => console.error("歸零失敗:", err));
+    }
+
+    function refreshAnalyticsData() {
+      fetch('/api/records/all')
+        .then(res => res.json())
+        .then(data => {
+          renderHourChart(data.events || []);
+          renderZoneDistribution(data.cameras || [], data.events || [], data.zones || [], data.zone_counts || {});
+        })
+        .catch(err => console.error("載入統計失敗:", err));
+    }
+
+    function renderHourChart(events) {
+      const totalEvents = events.length;
+      const statTotalEl = document.getElementById("statTotalEvents");
+      if (statTotalEl) statTotalEl.textContent = totalEvents;
+
+      // 6 個時段統計：00-04, 04-08, 08-12, 12-16, 16-20, 20-24
+      const slotCounts = [0, 0, 0, 0, 0, 0];
+      const slotLabels = ["深夜 (00-04)", "清晨 (04-08)", "上午 (08-12)", "下午 (12-16)", "傍晚 (16-20)", "夜間 (20-24)"];
+
+      events.forEach(ev => {
+        let hour = 6;
+        if (ev.time_str) {
+          const parts = ev.time_str.split(" ");
+          if (parts[1]) {
+            const h = parseInt(parts[1].split(":")[0]);
+            if (!isNaN(h)) hour = h;
+          }
+        } else if (ev.mtime) {
+          hour = new Date(ev.mtime * 1000).getHours();
+        }
+
+        const slotIdx = Math.min(5, Math.floor(hour / 4));
+        slotCounts[slotIdx]++;
+      });
+
+      const maxCount = Math.max(0, ...slotCounts);
+      let peakIdx = 1; // 預設清晨
+      let maxSlotCount = -1;
+
+      slotCounts.forEach((count, i) => {
+        const barEl = document.getElementById(`barSlot${i}`);
+        const valEl = document.getElementById(`valSlot${i}`);
+        if (valEl) valEl.textContent = count;
+
+        const pctHeight = maxCount > 0 ? Math.max(8, Math.round((count / maxCount) * 85)) : 6;
+        if (barEl) {
+          barEl.style.height = `${pctHeight}%`;
+          barEl.classList.remove("peak");
+        }
+
+        if (count > maxSlotCount) {
+          maxSlotCount = count;
+          peakIdx = i;
+        }
+      });
+
+      const peakBar = document.getElementById(`barSlot${peakIdx}`);
+      const statPeakEl = document.getElementById("statPeakHour");
+      const tipEl = document.getElementById("hourAlertTip");
+
+      if (totalEvents > 0 && maxSlotCount > 0) {
+        if (peakBar) peakBar.classList.add("peak");
+        if (statPeakEl) statPeakEl.textContent = slotLabels[peakIdx];
+        if (tipEl) {
+          if (peakIdx === 1) {
+            tipEl.innerHTML = `<strong>時段警示：</strong>清晨 04:00～08:00 為長輩起床如廁高峰，請注意走道防滑與感應夜燈輔助。`;
+          } else if (peakIdx === 4) {
+            tipEl.innerHTML = `<strong>時段警示：</strong>傍晚 16:00～20:00 活動較頻繁，多發生於走道與客廳，請留意地毯與電線障礙。`;
+          } else if (peakIdx === 0) {
+            tipEl.innerHTML = `<strong>時段警示：</strong>深夜 00:00～04:00 如廁活動風險偏高，建議加強走道感應照明與長輩防護。`;
+          } else {
+            tipEl.innerHTML = `<strong>時段警示：</strong>${slotLabels[peakIdx]} 為近期發生次數最多時段 (${maxSlotCount}次)，請加強照護關注。`;
+          }
+        }
+      } else {
+        if (statPeakEl) statPeakEl.textContent = "尚無事件";
+        if (tipEl) tipEl.innerHTML = `<strong>資料庫即時狀態：</strong>目前黑盒子事件資料庫中無異常跌倒紀錄，各時段作息安全平穩。`;
+      }
+    }
+
+    function renderZoneDistribution(cameras, events, zones, persistentZoneCounts) {
+      const container = document.getElementById("zoneListContainer");
+      if (!container) return;
+
+      const zoneCounts = {};
+
+      // 1. 從 zones.json (資料庫) 載入所有已配置監控區域
+      if (zones && zones.length > 0) {
+        zones.forEach(z => {
+          zoneCounts[z] = 0;
+        });
+      }
+
+      // 2. 從 cameras.json (資料庫) 載入每台攝影機所屬空間 (確保不遺漏)
+      if (cameras && cameras.length > 0) {
+        cameras.forEach(c => {
+          const zName = c.zone || "未設定區域";
+          if (zoneCounts[zName] === undefined) zoneCounts[zName] = 0;
+        });
+      }
+
+      // 若完全沒有區域設定
+      if (Object.keys(zoneCounts).length === 0) {
+        container.innerHTML = `<div style="text-align:center; padding:16px; color:rgba(245, 241, 234, 0.62); font-size:13px;">資料庫中尚未建立監控區域</div>`;
+        return;
+      }
+
+      // 3. 套用真實累積次數
+      let total = 0;
+      if (persistentZoneCounts) {
+        Object.keys(persistentZoneCounts).forEach(z => {
+          if (zoneCounts[z] === undefined) zoneCounts[z] = 0;
+          zoneCounts[z] = persistentZoneCounts[z];
+        });
+      }
+
+      // 計算總數
+      Object.values(zoneCounts).forEach(count => {
+        total += count;
+      });
+      container.innerHTML = "";
+
+      let maxZone = "尚無異常紀錄";
+      let maxPct = 0;
+      let maxCount = 0;
+
+      const sortedZones = Object.keys(zoneCounts).sort((a, b) => {
+        if (zoneCounts[b] !== zoneCounts[a]) return zoneCounts[b] - zoneCounts[a];
+        return a.localeCompare(b, "zh-Hant");
+      });
+
+      sortedZones.forEach(zone => {
+        const count = zoneCounts[zone];
+        const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+        if (count > maxCount) {
+          maxPct = pct;
+          maxZone = zone;
+          maxCount = count;
+        }
+        const isHigh = total > 0 && pct >= 50 && count > 0;
+
+        const row = document.createElement("div");
+        row.className = "zone-row";
+        row.innerHTML = `
+        <div class="zone-info">
+          <span style="color:#F5F1EA;">${zone}</span>
+          <strong style="color:${isHigh ? '#FF8066' : '#78E3F5'};">${count} 次 (${pct}%)</strong>
+        </div>
+        <div class="zone-track"><div class="zone-fill ${isHigh ? 'high' : ''}" style="width: ${count > 0 ? Math.max(6, pct) : 0}%;"></div></div>
+      `;
+        container.appendChild(row);
+      });
+
+      const highestNameEl = document.getElementById("highestRiskZoneName");
+      const highestPctEl = document.getElementById("highestRiskZonePct");
+      if (highestNameEl) {
+        if (total > 0 && maxCount > 0) {
+          highestNameEl.textContent = maxZone;
+          if (highestPctEl) highestPctEl.textContent = `(累計 ${maxCount} 次 · 佔比約 ${maxPct}%)`;
+        } else {
+          highestNameEl.textContent = "目前無跌倒紀錄";
+          if (highestPctEl) highestPctEl.textContent = "(各空間狀態安全良好)";
+        }
+      }
+    }
+
+    function showSaveToast() {
+      const toast = document.getElementById("saveFeedbackToast");
+      toast.classList.add("show");
+      setTimeout(() => {
+        toast.classList.remove("show");
+      }, 3200);
+    }
+
+    // ====== 1. 一級模擬觸發 ======
+    const toastL1 = document.getElementById("toastL1");
+    const triggerL1 = document.getElementById("triggerL1");
+    if (triggerL1) {
+      triggerL1.addEventListener("click", () => {
+        const mins = document.getElementById("cfgStationaryMinutes").value;
+        document.getElementById("toastL1Msg").textContent = `長輩在浴室已滯留 ${mins} 分鐘未移動，請關心確認長輩狀態。`;
+        if (toastL1) toastL1.classList.add("show");
+        if (toastL1) setTimeout(() => toastL1.classList.remove("show"), 6000);
+      });
+    }
+    function hideToast() { if (toastL1) toastL1.classList.remove("show"); }
+
+    // ====== 2. 二級動態倒數模擬 ======
+    const overlayL2 = document.getElementById("overlayL2");
+    const ringNumber = document.getElementById("ringNumber");
+    const ringProgress = document.getElementById("ringProgress");
+
+    const RADIUS = 58;
+    const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+    ringProgress.style.strokeDasharray = `${CIRCUMFERENCE} ${CIRCUMFERENCE}`;
+
+    let countdownTimer = null;
+    let remainingTime = 15;
+    let currentTotalDuration = 15;
+
+    function closeL2() {
+      clearInterval(countdownTimer);
+      overlayL2.classList.remove("is-open");
+    }
+
+    function openL2() {
+      clearInterval(countdownTimer);
+      currentTotalDuration = 15;
+      remainingTime = currentTotalDuration;
+      ringNumber.textContent = remainingTime;
+      ringProgress.style.strokeDashoffset = '0';
+
+      // 依目前設定顯示置信度
+      const confVal = (document.getElementById("cfgFallConf").value / 100).toFixed(2);
+      document.getElementById("modalL2Conf").textContent = Math.max(0.85, parseFloat(confVal) + 0.15).toFixed(2);
+
+      overlayL2.classList.add("is-open");
+
+      countdownTimer = setInterval(() => {
+        remainingTime--;
+        ringNumber.textContent = remainingTime;
+
+        const offset = CIRCUMFERENCE - (remainingTime / currentTotalDuration) * CIRCUMFERENCE;
+        ringProgress.style.strokeDashoffset = offset;
+
+        if (remainingTime <= 0) {
+          clearInterval(countdownTimer);
+          overlayL2.classList.remove("is-open");
+        }
+      }, 1000);
+    }
+
+    const triggerL2 = document.getElementById("triggerL2");
+    if (triggerL2) triggerL2.addEventListener("click", openL2);
+
+    const cancelL2 = document.getElementById("cancelL2");
+    if (cancelL2) cancelL2.addEventListener("click", closeL2);
+
+    const closeL2Cross = document.getElementById("closeL2Cross");
+    if (closeL2Cross) closeL2Cross.addEventListener("click", closeL2);
+
+
+
+    // 初始化載入
+    document.addEventListener("DOMContentLoaded", () => {
+      loadSettings();
+    });
+  </script>
+</body>
+
+</html>

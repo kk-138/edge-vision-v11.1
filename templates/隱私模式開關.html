@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<script src="/static/js/theme-toggle.js"></script>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>隱私模式設定</title>
+  <link rel="stylesheet" href="/static/css/design-system.css" />
+  <style>
+    /* ===================== 電子圍籬配色系統（與監看頁相同） ===================== */
+    :root {
+      --bg: #101024;
+      /* 背景 深紫黑 */
+      --primary: #78E3F5;
+      /* 冰藍：系統 / 科技 / 運作中 */
+      --primary-soft: rgba(120, 227, 245, 0.12);
+      --primary-mid: rgba(120, 227, 245, 0.22);
+      --primary-line: rgba(120, 227, 245, 0.35);
+      --fence: #D8FF5A;
+      /* 螢光黃綠：電子圍籬 / 偵測範圍 */
+      --alert: #FF8066;
+      /* 珊瑚橘：異常 / 警示 */
+      --text: #F5F1EA;
+      /* 暖白文字 */
+      --text-muted: rgba(245, 241, 234, 0.62);
+      --text-dim: rgba(245, 241, 234, 0.4);
+      --on-primary: #101024;
+
+      /* 半透明框框 */
+      --glass: rgba(23, 28, 35, 0.55);
+      --glass-strong: rgba(23, 28, 35, 0.78);
+      --glass-hover: rgba(30, 37, 48, 0.72);
+      --glass-input: rgba(19, 23, 41, 0.6);
+      --border: rgba(245, 241, 234, 0.12);
+      --border-strong: rgba(245, 241, 234, 0.22);
+    }
+
+    * {
+      box-sizing: border-box !important;
+    }
+
+    html {
+      scrollbar-gutter: stable;
+      /* 預留捲軸位置，換頁時導覽列不會左右跳 */
+      background-color: var(--bg);
+    }
+
+    body {
+      margin: 0;
+      padding: 0 !important;
+      background: transparent;
+      color: var(--text);
+      font-family: 'PingFang TC', 'PingFang SC', 'Noto Sans TC', sans-serif;
+      position: relative;
+    }
+
+    /* 固定的深藍漸層背景（與登入頁、監看頁同一組） */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background:
+        radial-gradient(ellipse at 20% 30%, rgba(120, 227, 245, 0.14), transparent 55%),
+        radial-gradient(ellipse at 80% 75%, rgba(216, 255, 90, 0.07), transparent 55%),
+        linear-gradient(90deg, #101024 0%, #1B2238 22%, #2A3450 50%, #1B2238 78%, #101024 100%);
+    }
+
+    .muted {
+      color: var(--text-muted);
+    }
+
+    select option {
+      background: #171C23;
+      color: var(--text);
+    }
+
+    /* 頂部導覽列（隨頁面滾動自然消失，不固定） */
+    .navbar-header {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 1280px;
+      height: auto;
+      background-color: transparent;
+      z-index: 2000;
+      padding: 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-sizing: border-box;
+    }
+
+    .nav-brand {
+      font-size: 20px;
+      color: #F5F1EA;
+      font-weight: bold;
+      text-decoration: none;
+      letter-spacing: 0.05em;
+    }
+
+    /* 漢堡按鈕 */
+    .hamburger-menu-wrapper {
+      position: relative;
+      z-index: 2010;
+    }
+
+    .hamburger-btn {
+      background: var(--glass);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1.5px solid var(--primary-line);
+      border-radius: 0;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      transition: background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .hamburger-btn:hover {
+      background: var(--glass-hover);
+      border-color: var(--primary);
+    }
+
+    .hamburger-btn span {
+      display: block;
+      width: 20px;
+      height: 2px;
+      background-color: var(--primary);
+      transition: 0.3s;
+    }
+
+    .hamburger-menu-wrapper.open .hamburger-btn span:nth-child(1) {
+      transform: translateY(7px) rotate(45deg);
+    }
+
+    .hamburger-menu-wrapper.open .hamburger-btn span:nth-child(2) {
+      opacity: 0;
+    }
+
+    .hamburger-menu-wrapper.open .hamburger-btn span:nth-child(3) {
+      transform: translateY(-7px) rotate(-45deg);
+    }
+
+    /* 下拉選單 */
+    .hamburger-dropdown {
+      position: absolute;
+      top: calc(100% + 12px);
+      right: 0;
+      width: 220px;
+      background: var(--glass-strong);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1.5px solid var(--primary-line);
+      border-radius: 0;
+      display: none;
+      flex-direction: column;
+      z-index: 2020;
+      box-shadow: -4px 12px 32px rgba(0, 0, 0, 0.6);
+    }
+
+    .hamburger-menu-wrapper.open .hamburger-dropdown {
+      display: flex;
+    }
+
+    .dropdown-item {
+      position: relative;
+      padding: 16px 20px;
+      color: var(--text);
+      text-decoration: none;
+      font-size: 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .dropdown-item:last-child {
+      border-bottom: none;
+    }
+
+    .dropdown-item:hover {
+      background: var(--primary-soft);
+      color: var(--primary);
+    }
+
+    /* 被選中頁面的樣式 (打勾) */
+    .dropdown-item.active {
+      background: var(--primary-mid);
+      color: var(--primary);
+      font-weight: bold;
+    }
+
+    .dropdown-item.active::after {
+      content: "✓";
+      color: var(--primary);
+      font-size: 16px;
+    }
+
+    /* 選單提示框 (Tooltip：向左展開) */
+    .dropdown-item[data-tooltip]::before {
+      content: attr(data-tooltip);
+      position: absolute;
+      right: 100%;
+      top: 50%;
+      transform: translateY(-50%);
+      margin-right: 12px;
+      background: var(--glass-strong);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      color: var(--primary);
+      padding: 8px 14px;
+      border: 1px solid var(--primary-line);
+      border-radius: 0;
+      font-size: 13px;
+      white-space: nowrap;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.2s ease, margin-right 0.2s ease;
+      box-shadow: -4px 6px 16px rgba(0, 0, 0, 0.5);
+      z-index: 2030;
+    }
+
+    .dropdown-item[data-tooltip]:hover::before {
+      opacity: 1;
+      visibility: visible;
+      margin-right: 16px;
+    }
+
+    /* 統一的殼層與對齊容器（貼齊 1280px 導覽列與 EDGE-VISION 標誌） */
+    .app-shell {
+      width: 100% !important;
+      max-width: 1280px !important;
+      margin: 0 auto !important;
+      padding: 32px !important;
+      padding-top: 80px !important;
+    }
+
+    /* 頁面頂部：左右排列，標題與下方卡片垂直對齊 */
+    .page-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 24px;
+      width: 100%;
+    }
+
+    .page-title {
+      margin: 0 0 6px 0;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 0.02em;
+    }
+
+    /* 外框按鈕（原 btn-gold-outline，保留 class 名稱） */
+    .btn-gold-outline {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: var(--glass);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1.5px solid var(--primary);
+      border-radius: 0;
+      color: var(--primary);
+      padding: 10px 22px;
+      font-size: 15px;
+      font-weight: 400;
+      text-decoration: none;
+      letter-spacing: 1px;
+      transition: all 0.2s ease;
+      width: fit-content;
+      margin-top: 4px;
+    }
+
+    .btn-gold-outline:hover {
+      background: var(--primary);
+      color: var(--on-primary);
+    }
+
+    /* 單一直排容器 */
+    .single-column-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      width: 100%;
+    }
+
+    /* 卡片：直角 + 半透明玻璃感 */
+    .setting-card {
+      background: var(--glass);
+      backdrop-filter: blur(12px) saturate(1.2);
+      -webkit-backdrop-filter: blur(12px) saturate(1.2);
+      border: 1px solid var(--border);
+      border-radius: 0;
+      padding: 20px;
+    }
+
+    .setting-card h3 {
+      margin: 0 0 4px 0;
+      font-size: 16px;
+      color: var(--text);
+    }
+
+    .setting-select {
+      min-width: 180px;
+      padding: 8px 12px;
+      background: var(--glass-input);
+      border: 1px solid var(--border-strong);
+      border-radius: 0;
+      color: var(--text);
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .setting-select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    /* Switch 開關：直角款，開啟 = 冰藍 */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 48px;
+      height: 26px;
+      flex-shrink: 0;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .switch-slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: rgba(245, 241, 234, 0.1);
+      border: 1px solid var(--border-strong);
+      border-radius: 0;
+      transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .switch-slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: var(--text);
+      border-radius: 0;
+      transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .switch input:checked+.switch-slider {
+      background-color: var(--primary);
+      border-color: var(--primary);
+      box-shadow: 0 0 10px rgba(120, 227, 245, 0.35);
+    }
+
+    .switch input:checked+.switch-slider:before {
+      transform: translateX(22px);
+      background-color: var(--on-primary);
+    }
+
+    .switch input:focus-visible+.switch-slider {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 16px 0;
+    }
+
+    .section-label {
+      margin: 0 0 8px 0;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .cam-row {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 16px 4px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .cam-row:last-child {
+      border-bottom: none;
+    }
+
+    .cam-row__thumb {
+      width: 112px;
+      height: 84px;
+      border-radius: 0;
+      flex-shrink: 0;
+      background: linear-gradient(160deg, rgba(30, 37, 48, 0.8), rgba(18, 22, 29, 0.8));
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      transition: border-color 0.2s ease;
+    }
+
+    .cam-row__thumb.masked::after {
+      content: "已遮蔽";
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(45deg, #0C0C1C, #0C0C1C 4px, #171C23 4px, #171C23 8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+    }
+
+    .cam-row__name {
+      flex: 1;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .cam-row__sub {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    /* 隱私模式生效提示條 */
+    .banner {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      background: var(--primary-soft);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid var(--primary-line);
+      border-radius: 0;
+      padding: 12px 16px;
+      font-size: 14px;
+      margin-bottom: 20px;
+      color: var(--text);
+    }
+
+    .banner.show {
+      display: flex;
+    }
+
+    .banner-icon {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: var(--primary);
+      box-shadow: 0 0 8px var(--primary);
+    }
+
+    #autoResumeText {
+      font-weight: bold;
+      color: var(--primary);
+    }
+  </style>
+</head>
+
+<body data-nav-active="07">
+
+  <header class="navbar-header">
+    <a href="/monitor" class="brand" title="回到即時監看"><span class="brand-name">EDGE-<b>VISION</b></span></a>
+
+    <div class="hamburger-menu-wrapper" id="hamburgerMenu">
+      <button class="hamburger-btn" onclick="toggleMenu()" aria-label="選單">
+        <span></span><span></span><span></span>
+      </button>
+
+      <div class="hamburger-dropdown">
+        <a href="/monitor" class="dropdown-item" data-tooltip="返回九宮格即時監看畫面">即時監看</a>
+        <a href="跌倒與異常姿態偵測.html" class="dropdown-item" data-tooltip="跌倒事件歷史紀錄與黑盒子覆盤">歷史紀錄</a>
+        <a href="隱私模式開關.html" class="dropdown-item active" data-tooltip="暫時遮蔽鏡頭保護私密時刻">隱私模式</a>
+        <a href="三階段警報.html" class="dropdown-item" data-tooltip="三階段警報策略與 AI 模型設定">系統設定</a>
+
+        <a href="/" class="dropdown-item" data-tooltip="重新挑選照顧者或長輩身分">返回身分選擇</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="app-shell">
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">隱私模式設定</h1>
+        <p class="muted" style="margin: 0; font-size: 14px; line-height: 1.6;">
+          隱私模式開啟期間系統僅暫停即時影像畫面，跌倒偵測與緊急求救機制仍正常運作，安全警報不受影響。
+        </p>
+      </div>
+      <a class="btn-gold-outline" href="/monitor" style="margin-top: 0;">
+        ← 回到即時監看
+      </a>
+    </div>
+
+    <div class="banner" id="privacyBanner">
+      <span class="banner-icon"></span>
+      <div>
+        隱私模式生效中，指定鏡頭畫面已暫停 —— 將於 <span id="autoResumeText">30 分鐘</span>後自動恢復
+      </div>
+    </div>
+
+    <div class="single-column-layout">
+
+      <div class="card setting-card">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+          <div>
+            <h3>自動恢復排程時間</h3>
+            <p class="muted" style="margin:0; font-size:13px;">設定開啟隱私模式後，自動切回正常監看畫面的倒數時間</p>
+          </div>
+          <div>
+            <select id="autoResumeSelect" class="setting-select">
+              <option value="5">5 分鐘</option>
+              <option value="15">15 分鐘</option>
+              <option value="30" selected>30 分鐘</option>
+              <option value="60">60 分鐘 (1小時)</option>
+              <option value="120">120 分鐘 (2小時)</option>
+              <option value="0">持續遮蔽直到手動關閉</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="card setting-card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <h3>一鍵全域訪客模式</h3>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="guestModeToggle" />
+            <span class="switch-slider"></span>
+          </label>
+        </div>
+
+        <hr class="divider" />
+
+        <h4 class="section-label">個別房間遮蔽控制</h4>
+        <div id="camList">
+          {% for i in range(n_cameras) %}
+          <div class="cam-row" data-cam-id="{{ i }}">
+            <div class="cam-row__thumb"
+              style="background-image: url('/video_feed/{{ i }}'); background-size: cover; background-position: center;">
+            </div>
+            <div class="cam-row__name">{{ cam_states[i].name }}<div class="cam-row__sub">CAM-{{ "%02d"|format(i + 1) }}
+              </div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" class="cam-toggle" data-target="{{ i }}" {% if cam_states[i].is_privacy_mode
+                %}checked{% endif %} />
+              <span class="switch-slider"></span>
+            </label>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="/static/js/shared.js"></script>
+  <script>
+    function toggleMenu() {
+      document.getElementById('hamburgerMenu').classList.toggle('open');
+    }
+
+    document.addEventListener('click', function (e) {
+      const menu = document.getElementById('hamburgerMenu');
+      if (menu && !menu.contains(e.target)) {
+        menu.classList.remove('open');
+      }
+    });
+
+    const guestToggle = document.getElementById("guestModeToggle");
+    const camToggles = document.querySelectorAll(".cam-toggle");
+    const banner = document.getElementById("privacyBanner");
+    const autoResumeSelect = document.getElementById("autoResumeSelect");
+    const autoResumeText = document.getElementById("autoResumeText");
+
+    function applyMask(rowEl, isMasked) {
+      if (!rowEl) return;
+      rowEl.querySelector(".cam-row__thumb").classList.toggle("masked", isMasked);
+    }
+
+    const timers = {};
+    function handleAutoResume(id, isEnabled) {
+      if (timers[id]) clearTimeout(timers[id]);
+
+      if (isEnabled) {
+        const val = parseInt(autoResumeSelect.value, 10);
+        if (val > 0) {
+          timers[id] = setTimeout(() => {
+            const toggle = document.querySelector(`.cam-toggle[data-target="${id}"]`);
+            if (toggle) {
+              toggle.checked = false;
+              applyMask(toggle.closest(".cam-row"), false);
+            }
+            fetch(`/api/set_privacy/${id}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ active: false })
+            });
+
+            let anyActive = false;
+            camToggles.forEach(t => { if (t.checked) anyActive = true; });
+            banner.classList.toggle("show", anyActive);
+            if (!anyActive) guestToggle.checked = false;
+          }, val * 60 * 1000);
+        }
+      }
+    }
+
+    function updatePrivacyState(e) {
+      let anyActive = false;
+      let allActive = true;
+
+      camToggles.forEach((t) => {
+        const isChecked = t.checked;
+        applyMask(t.closest(".cam-row"), isChecked);
+        if (isChecked) anyActive = true;
+        if (!isChecked) allActive = false;
+      });
+
+      guestToggle.checked = allActive;
+      banner.classList.toggle("show", anyActive);
+
+      if (e && e.target) {
+        const id = e.target.dataset.target;
+        fetch(`/api/set_privacy/${id}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ active: e.target.checked })
+        }).catch(err => console.error(err));
+        handleAutoResume(id, e.target.checked);
+      }
+    }
+
+    // 一鍵訪客模式 Switch 切換
+    guestToggle.addEventListener("change", () => {
+      const isEnabled = guestToggle.checked;
+      camToggles.forEach((t) => {
+        if (t.checked !== isEnabled) {
+          t.checked = isEnabled;
+          applyMask(t.closest(".cam-row"), isEnabled);
+
+          const id = t.dataset.target;
+          fetch(`/api/set_privacy/${id}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ active: isEnabled })
+          });
+          handleAutoResume(id, isEnabled);
+        }
+      });
+      banner.classList.toggle("show", isEnabled);
+    });
+
+    // 各房間 Switch 切換
+    camToggles.forEach((t) => {
+      t.addEventListener("change", updatePrivacyState);
+    });
+
+    // 自動恢復時間選單監聽
+    autoResumeSelect.addEventListener("change", () => {
+      const val = autoResumeSelect.value;
+      if (val === "0") {
+        autoResumeText.textContent = "手動切換";
+      } else {
+        autoResumeText.textContent = val + " 分鐘";
+      }
+      localStorage.setItem("autoResumeDuration", val);
+    });
+
+    // 初始化載入狀態
+    window.addEventListener("DOMContentLoaded", () => {
+      const savedDuration = localStorage.getItem("autoResumeDuration");
+      if (savedDuration) {
+        autoResumeSelect.value = savedDuration;
+        autoResumeText.textContent = savedDuration === "0" ? "手動切換" : savedDuration + " 分鐘";
+      }
+
+      // Initialize UI based on backend states
+      let anyActive = false;
+      let allActive = true;
+      camToggles.forEach((t) => {
+        const isChecked = t.checked;
+        applyMask(t.closest(".cam-row"), isChecked);
+        if (isChecked) anyActive = true;
+        if (!isChecked) allActive = false;
+      });
+      guestToggle.checked = allActive && camToggles.length > 0;
+      banner.classList.toggle("show", anyActive);
+    });
+  </script>
+</body>
+
+</html>

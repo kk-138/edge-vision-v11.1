@@ -1,0 +1,2178 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<script src="/static/js/theme-toggle.js"></script>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>跌倒事件紀錄與黑盒子覆盤</title>
+  <link rel="stylesheet" href="/static/css/design-system.css" />
+  <style>
+    html {
+      scrollbar-gutter: stable;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0 !important;
+      width: 100%;
+      overflow-x: hidden;
+      background-color: #101024;
+      color: #F5F1EA;
+      font-family: var(--font-body, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+    }
+
+    body {
+      background-color: transparent !important;
+      /* 讓下面的漸層背景透出來 */
+      position: relative;
+    }
+
+    /* 固定的深藍漸層背景（與登入頁同一組） */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background:
+        radial-gradient(ellipse at 20% 20%, rgba(120, 227, 245, 0.12), transparent 55%),
+        radial-gradient(ellipse at 85% 80%, rgba(216, 255, 90, 0.06), transparent 55%),
+        linear-gradient(90deg, #101024 0%, #1B2238 22%, #2A3450 50%, #1B2238 78%, #101024 100%);
+    }
+
+    /* 頂部導覽列（隨頁面滾動自然消失，不固定） */
+    .navbar-header {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 1280px;
+      height: auto;
+      background-color: transparent;
+      z-index: 2000;
+      padding: 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-sizing: border-box;
+    }
+
+    .nav-brand {
+      font-size: 20px;
+      color: #F5F1EA;
+      font-weight: bold;
+      text-decoration: none;
+      letter-spacing: 0.05em;
+    }
+
+    /* 漢堡按鈕與下拉選單 */
+    .hamburger-menu-wrapper {
+      position: relative;
+      z-index: 2010;
+    }
+
+    .hamburger-btn {
+      background: rgba(23, 28, 35, 0.6);
+      border: 1.5px solid #78E3F5;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .hamburger-btn:hover {
+      background: rgba(30, 37, 48, 0.75);
+    }
+
+    .hamburger-btn span {
+      display: block;
+      width: 20px;
+      height: 2px;
+      background-color: #78E3F5;
+      transition: 0.3s;
+    }
+
+    .hamburger-menu-wrapper.open .hamburger-btn span:nth-child(1) {
+      transform: translateY(7px) rotate(45deg);
+    }
+
+    .hamburger-menu-wrapper.open .hamburger-btn span:nth-child(2) {
+      opacity: 0;
+    }
+
+    .hamburger-menu-wrapper.open .hamburger-btn span:nth-child(3) {
+      transform: translateY(-7px) rotate(-45deg);
+    }
+
+    .hamburger-dropdown {
+      position: absolute;
+      top: calc(100% + 12px);
+      right: 0;
+      width: 220px;
+      background: rgba(23, 28, 35, 0.78);
+      border: 1.5px solid #78E3F5;
+      display: none;
+      flex-direction: column;
+      z-index: 2020;
+      box-shadow: -4px 12px 32px rgba(0, 0, 0, 0.85);
+    }
+
+    .hamburger-menu-wrapper.open .hamburger-dropdown {
+      display: flex;
+    }
+
+    .dropdown-item {
+      position: relative;
+      padding: 16px 20px;
+      color: #F5F1EA;
+      text-decoration: none;
+      font-size: 16px;
+      border-bottom: 1px solid rgba(245, 241, 234, 0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .dropdown-item:last-child {
+      border-bottom: none;
+    }
+
+    .dropdown-item:hover {
+      background: rgba(120, 227, 245, 0.12);
+      color: #78E3F5;
+    }
+
+    .dropdown-item.active {
+      background: rgba(120, 227, 245, 0.2);
+      color: #78E3F5;
+      font-weight: bold;
+    }
+
+    .dropdown-item.active::after {
+      content: "✓";
+      color: #78E3F5;
+      font-size: 16px;
+    }
+
+    .dropdown-item[data-tooltip]::before {
+      content: attr(data-tooltip);
+      position: absolute;
+      right: 100%;
+      top: 50%;
+      transform: translateY(-50%);
+      margin-right: 12px;
+      background: rgba(23, 28, 35, 0.6);
+      color: #78E3F5;
+      padding: 8px 14px;
+      border: 1px solid rgba(120, 227, 245, 0.35);
+      font-size: 13px;
+      white-space: nowrap;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      z-index: 2030;
+    }
+
+    .dropdown-item[data-tooltip]:hover::before {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    /* 主容器 */
+    .app-shell {
+      width: 100% !important;
+      max-width: 1280px !important;
+      margin: 0 auto !important;
+      padding: 32px !important;
+      padding-top: 80px !important;
+    }
+
+    .page-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .btn-gold-outline {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: transparent;
+      border: 1.5px solid #78E3F5;
+      color: #78E3F5;
+      padding: 10px 20px;
+      font-size: 14px;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      border-radius: 0;
+    }
+
+    .btn-gold-outline:hover {
+      background: rgba(120, 227, 245, 0.12);
+      border-color: #B4F1FA;
+      color: #B4F1FA;
+    }
+
+    /* 數據統計看板 KPI Cards */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .metric-card {
+      background: rgba(23, 28, 35, 0.55);
+      border: 1px solid rgba(245, 241, 234, 0.12);
+      border-radius: 0;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .metric-card:hover {
+      transform: translateY(-3px);
+      border-color: #78E3F5;
+    }
+
+    .metric-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: #78E3F5;
+    }
+
+    .metric-card.danger::before {
+      background: #FF8066;
+    }
+
+    .metric-card.success::before {
+      background: #78E3F5;
+    }
+
+    .metric-card.warning::before {
+      background: #D8FF5A;
+    }
+
+    .metric-label {
+      font-size: 13px;
+      color: rgba(245, 241, 234, 0.62);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .metric-value {
+      font-size: 26px;
+      font-weight: bold;
+      color: #F5F1EA;
+      letter-spacing: 0.5px;
+    }
+
+    .metric-desc {
+      font-size: 12px;
+      color: rgba(245, 241, 234, 0.4);
+    }
+
+    /* 主要導覽分頁頁籤 (事件黑盒子 vs 24小時連續錄影) */
+    .category-tabs {
+      position: relative;
+      /* 讓底線指示器可以滑動 */
+      display: flex;
+      gap: 12px;
+      border-bottom: 2px solid rgba(245, 241, 234, 0.12);
+      margin-bottom: 20px;
+    }
+
+    .category-tab {
+      background: transparent;
+      border: none;
+      color: rgba(245, 241, 234, 0.62);
+      font-size: 16px;
+      font-weight: bold;
+      padding: 12px 20px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .category-tab:hover {
+      color: #78E3F5;
+    }
+
+    .category-tab.active {
+      color: #78E3F5;
+    }
+
+    /* 滑動底線：跟著目前的頁籤平滑移動 */
+    .tab-indicator {
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      height: 2px;
+      width: 0;
+      background: #78E3F5;
+      box-shadow: 0 0 10px rgba(120, 227, 245, 0.6);
+      transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* 內容滑動區：兩個清單並排，左右滑動切換 */
+    .panel-viewport {
+      overflow: hidden;
+      transition: height 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .panel-track {
+      display: flex;
+      width: 200%;
+      align-items: flex-start;
+      transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+      will-change: transform;
+    }
+
+    .panel-track.show-daily {
+      transform: translateX(-50%);
+    }
+
+    .panel {
+      flex: 0 0 50%;
+      min-width: 0;
+      transition: opacity 0.6s ease;
+    }
+
+    .panel.is-inactive {
+      opacity: 0.25;
+    }
+
+    /* 篩選列內容在切換時淡入 */
+    #filterTabs,
+    #dailyFilterTabs,
+    #btnMarkAllReviewed {
+      animation: softIn 0.45s ease both;
+    }
+
+    @keyframes softIn {
+      from {
+        opacity: 0;
+        transform: translateX(8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+      .tab-indicator,
+      .panel-viewport,
+      .panel-track,
+      .panel {
+        transition: none;
+      }
+
+      #filterTabs,
+      #dailyFilterTabs,
+      #btnMarkAllReviewed {
+        animation: none;
+      }
+    }
+
+    /* 篩選操作列 Filter Bar */
+    .filter-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      background: rgba(23, 28, 35, 0.55);
+      border: 1px solid rgba(245, 241, 234, 0.12);
+      border-radius: 0;
+      padding: 12px 18px;
+      margin-bottom: 24px;
+    }
+
+    .filter-tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      background: rgba(30, 37, 48, 0.55);
+      border: 1px solid rgba(245, 241, 234, 0.14);
+      color: rgba(245, 241, 234, 0.62);
+      padding: 6px 14px;
+      font-size: 13px;
+      border-radius: 0;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .filter-btn:hover {
+      color: #F5F1EA;
+      border-color: #78E3F5;
+    }
+
+    .filter-btn.active {
+      background: #78E3F5;
+      border-color: #78E3F5;
+      color: #101024;
+      font-weight: bold;
+    }
+
+    .filter-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    /* 雙欄主版面 */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1.55fr 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    /* 左欄：黑盒子事件列表 */
+    .incident-stream {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .incident-card {
+      background: rgba(23, 28, 35, 0.55);
+      border: 1px solid rgba(245, 241, 234, 0.12);
+      border-radius: 0;
+      padding: 20px;
+      transition: all 0.25s ease;
+      position: relative;
+    }
+
+    .incident-card:hover {
+      border-color: rgba(245, 241, 234, 0.25);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .incident-card.unreviewed {
+      border-left: 4px solid #FF8066;
+    }
+
+    .ic-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .ic-location {
+      font-size: 16px;
+      font-weight: bold;
+      color: #F5F1EA;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ic-time {
+      font-size: 13px;
+      color: rgba(245, 241, 234, 0.62);
+    }
+
+    .ic-status-badge {
+      padding: 3px 10px;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: 0;
+    }
+
+    .ic-status-badge.danger {
+      background: rgba(255, 128, 102, 0.2);
+      color: #FF8066;
+      border: 1px solid rgba(255, 128, 102, 0.4);
+    }
+
+    .ic-status-badge.warning {
+      background: rgba(216, 255, 90, 0.2);
+      color: #D8FF5A;
+      border: 1px solid rgba(216, 255, 90, 0.4);
+    }
+
+    .ic-body {
+      display: grid;
+      grid-template-columns: 190px 1fr;
+      gap: 18px;
+      margin-bottom: 16px;
+    }
+
+    .ic-thumb-box {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: rgba(10, 10, 24, 0.6);
+      border: 1px solid rgba(245, 241, 234, 0.12);
+      border-radius: 0;
+      overflow: hidden;
+      position: relative;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ic-thumb-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.3s ease;
+    }
+
+    .ic-thumb-box:hover .ic-thumb-img {
+      transform: scale(1.05);
+    }
+
+    .ic-play-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+
+    .ic-thumb-box:hover .ic-play-overlay {
+      background: rgba(120, 227, 245, 0.25);
+    }
+
+    .play-icon {
+      width: 36px;
+      height: 36px;
+      background: rgba(120, 227, 245, 0.9);
+      color: #101024;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: bold;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+    }
+
+    .ic-data-list {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      gap: 6px;
+    }
+
+    .ic-data-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      border-bottom: 1px solid rgba(245, 241, 234, 0.08);
+      padding-bottom: 4px;
+    }
+
+    .ic-data-k {
+      color: rgba(245, 241, 234, 0.62);
+    }
+
+    .ic-data-v {
+      color: #F5F1EA;
+      font-weight: 500;
+    }
+
+    .ic-data-v.highlight {
+      color: #FF8066;
+    }
+
+    /* 照顧者審查按鈕列 (已移除自行站起) */
+    .ic-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid rgba(245, 241, 234, 0.08);
+      padding-top: 14px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .tag-btn-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .tag-btn {
+      background: transparent;
+      border: 1px solid rgba(245, 241, 234, 0.14);
+      color: rgba(245, 241, 234, 0.62);
+      padding: 6px 14px;
+      font-size: 12px;
+      border-radius: 0;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tag-btn:hover {
+      border-color: #78E3F5;
+      color: #F5F1EA;
+    }
+
+    .tag-btn.active.confirmed {
+      background: rgba(255, 128, 102, 0.15);
+      border-color: #FF8066;
+      color: #FF8066;
+    }
+
+    .tag-btn.active.falsealarm {
+      background: rgba(216, 255, 90, 0.15);
+      border-color: #D8FF5A;
+      color: #D8FF5A;
+    }
+
+    .btn-open-video {
+      background: transparent;
+      border: 1.5px solid #78E3F5;
+      color: #78E3F5;
+      padding: 6px 14px;
+      font-size: 13px;
+      border-radius: 0;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn-open-video:hover {
+      background: #78E3F5;
+      color: #101024;
+    }
+
+    /* 24小時連續錄影檔案表格 */
+    .daily-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: rgba(23, 28, 35, 0.55);
+      border: 1px solid rgba(245, 241, 234, 0.12);
+      border-radius: 0;
+      overflow: hidden;
+    }
+
+    .daily-table th,
+    .daily-table td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid rgba(245, 241, 234, 0.08);
+      font-size: 13px;
+    }
+
+    .daily-table th {
+      background: rgba(30, 37, 48, 0.55);
+      color: #78E3F5;
+      font-weight: 600;
+    }
+
+    .daily-table tr:hover td {
+      background: rgba(120, 227, 245, 0.04);
+    }
+
+    /* 右欄：覆盤分析看板 */
+    .analytics-sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .analysis-card {
+      background: rgba(23, 28, 35, 0.55);
+      border: 1px solid rgba(245, 241, 234, 0.12);
+      border-radius: 0;
+      padding: 20px;
+    }
+
+    .analysis-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #F5F1EA;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* 24小時時段直方圖 */
+    .hour-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 12px;
+      height: 120px;
+      padding: 10px 0 20px 0;
+      border-bottom: 1px solid rgba(245, 241, 234, 0.12);
+      margin-bottom: 12px;
+    }
+
+    .hour-bar-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100%;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+
+    .hour-bar {
+      width: 100%;
+      background: rgba(245, 241, 234, 0.12);
+      border-radius: 0 0 0;
+      transition: height 0.4s ease, background 0.3s;
+      min-height: 4px;
+    }
+
+    .hour-bar.peak {
+      background: linear-gradient(180deg, #FF8066 0%, #78E3F5 100%);
+    }
+
+    .hour-label {
+      font-size: 11px;
+      color: rgba(245, 241, 234, 0.62);
+      white-space: nowrap;
+    }
+
+    .chart-alert-tip {
+      font-size: 12px;
+      color: #78E3F5;
+      background: rgba(120, 227, 245, 0.08);
+      border: 1px solid rgba(120, 227, 245, 0.2);
+      padding: 8px 12px;
+      border-radius: 0;
+      line-height: 1.5;
+    }
+
+    /* 區域分布長條 */
+    .zone-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .zone-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .zone-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+    }
+
+    .zone-track {
+      width: 100%;
+      height: 6px;
+      background: rgba(245, 241, 234, 0.08);
+      border-radius: 0;
+      overflow: hidden;
+    }
+
+    .zone-fill {
+      height: 100%;
+      background: #78E3F5;
+      border-radius: 0;
+    }
+
+    .zone-fill.high {
+      background: #FF8066;
+    }
+
+    /* 靈敏度微調卡片 */
+    .tuning-group {
+      margin-bottom: 14px;
+    }
+
+    .tuning-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: rgba(245, 241, 234, 0.62);
+      margin-bottom: 6px;
+    }
+
+    .range-slider {
+      width: 100%;
+      accent-color: #78E3F5;
+      cursor: pointer;
+    }
+
+    .btn-save-tune {
+      width: 100%;
+      background: rgba(30, 37, 48, 0.55);
+      border: 1px solid #78E3F5;
+      color: #78E3F5;
+      padding: 10px;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 0;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-save-tune:hover {
+      background: #78E3F5;
+      color: #101024;
+    }
+
+    /* 播放彈窗與覆蓋層 */
+    .modal-desc-box {
+      display: flex;
+      justify-content: space-between;
+      background: rgba(23, 28, 35, 0.55);
+      border: 1px solid rgba(245, 241, 234, 0.12);
+      border-radius: 0;
+      padding: 12px 16px;
+      margin-top: 14px;
+      text-align: left;
+      font-size: 13px;
+    }
+
+    /* 批次選取刪除工具列 */
+    .batch-action-bar {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 92%;
+      max-width: 860px;
+      background: rgba(30, 37, 48, 0.55);
+      border: 1.5px solid #78E3F5;
+      border-radius: 0;
+      padding: 12px 24px;
+      z-index: 2500;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.9);
+      animation: slideUpBatch 0.25s ease-out;
+    }
+
+    @keyframes slideUpBatch {
+      from {
+        transform: translate(-50%, 40px);
+        opacity: 0;
+      }
+
+      to {
+        transform: translate(-50%, 0);
+        opacity: 1;
+      }
+    }
+
+    .batch-action-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .btn-batch-delete {
+      background: rgba(255, 128, 102, 0.2);
+      border: 1.5px solid #FF8066;
+      color: #FF8066;
+      padding: 8px 18px;
+      font-size: 13px;
+      font-weight: bold;
+      border-radius: 0;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn-batch-delete:hover {
+      background: #FF8066;
+      color: #F5F1EA;
+      box-shadow: 0 0 14px rgba(255, 128, 102, 0.5);
+      transform: translateY(-1px);
+    }
+
+    .btn-batch-cancel {
+      background: transparent;
+      border: 1px solid rgba(245, 241, 234, 0.25);
+      color: rgba(245, 241, 234, 0.62);
+      padding: 8px 14px;
+      font-size: 13px;
+      border-radius: 0;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-batch-cancel:hover {
+      border-color: #78E3F5;
+      color: #F5F1EA;
+    }
+
+    /* ===== 直角 + 半透明玻璃感：所有框框統一 ===== */
+    .hamburger-btn,
+    .hamburger-dropdown,
+    .metric-card,
+    .filter-bar,
+    .incident-card,
+    .daily-table,
+    .analysis-card,
+    .modal-desc-box,
+    .batch-action-bar {
+      backdrop-filter: blur(12px) saturate(1.2);
+      -webkit-backdrop-filter: blur(12px) saturate(1.2);
+    }
+
+    .daily-table th {
+      background: rgba(30, 37, 48, 0.7);
+    }
+
+    .batch-action-bar {
+      background: rgba(23, 28, 35, 0.8);
+    }
+
+    /* 回放彈窗 */
+    .cam-modal-window {
+      background: rgba(23, 28, 35, 0.72) !important;
+      border: 1px solid rgba(120, 227, 245, 0.35) !important;
+      border-radius: 0 !important;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    .modal-topbar {
+      background: rgba(30, 37, 48, 0.6) !important;
+      border-radius: 0 !important;
+    }
+
+    .modal-close-btn {
+      border-radius: 0 !important;
+    }
+
+    /* 原生下拉 / 選單項目維持可讀 */
+    select option {
+      background: #171C23;
+      color: #F5F1EA;
+    }
+
+    @media screen and (max-width: 900px) {
+      .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .ic-body {
+        grid-template-columns: 1fr;
+      }
+
+      .ic-thumb-box {
+        max-height: 200px;
+      }
+    }
+
+    @media screen and (max-width: 500px) {
+      .metrics-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .app-shell {
+        padding: 16px 12px 60px !important;
+      }
+    }
+  </style>
+</head>
+
+<body data-nav-active="05">
+
+  <header class="navbar-header">
+    <a href="/monitor" class="brand" title="回到即時監看"><span class="brand-name">EDGE-<b>VISION</b></span></a>
+
+    <div class="hamburger-menu-wrapper" id="hamburgerMenu">
+      <button class="hamburger-btn" onclick="toggleMenu()" aria-label="選單">
+        <span></span><span></span><span></span>
+      </button>
+
+      <div class="hamburger-dropdown">
+        <a href="/monitor" class="dropdown-item" data-tooltip="返回九宮格即時監看畫面">即時監看</a>
+        <a href="跌倒與異常姿態偵測.html" class="dropdown-item active" data-tooltip="跌倒事件歷史紀錄與黑盒子覆盤">歷史紀錄</a>
+        <a href="隱私模式開關.html" class="dropdown-item" data-tooltip="暫時遮蔽鏡頭保護私密時刻">隱私模式</a>
+        <a href="三階段警報.html" class="dropdown-item" data-tooltip="三階段警報策略與 AI 模型設定">系統設定</a>
+
+        <a href="/" class="dropdown-item" data-tooltip="重新挑選照顧者或長輩身分">返回身分選擇</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="app-shell">
+    <div class="page-head">
+      <div>
+        <h1 style="margin: 0 0 6px 0; font-size: 28px; color: #F5F1EA; font-weight: 700;">跌倒事件歷史紀錄與黑盒子覆盤</h1>
+        <p style="margin: 0; font-size: 14px; color: rgba(245, 241, 234, 0.62); line-height: 1.6;">
+          直接串接實體錄影與截圖資料庫，提供前後 30 秒事件精華、24 小時連續錄影與 AI 演算法防誤判微調。
+        </p>
+      </div>
+      <div style="display: flex; gap: 10px;">
+        <button class="btn-gold-outline" onclick="triggerTestRecord()" title="手動捕捉一張截圖並生成 30 秒事件影片">
+          產生測試快照與錄影
+        </button>
+        <a class="btn-gold-outline" href="/monitor">
+          ← 回到即時監看
+        </a>
+      </div>
+    </div>
+
+    <!-- 頂部數據看板 KPI Cards -->
+    <div class="metrics-grid">
+      <div class="metric-card danger">
+        <div class="metric-label"> 實體事件影片存檔</div>
+        <div class="metric-value" id="kpiTotalVideos">0 部</div>
+        <div class="metric-desc">event_videos 影片數</div>
+      </div>
+      <div class="metric-card warning">
+        <div class="metric-label">跌倒瞬間快照截圖</div>
+        <div class="metric-value" id="kpiTotalImages">0 張</div>
+        <div class="metric-desc">event_images 圖片數</div>
+      </div>
+      <div class="metric-card success">
+        <div class="metric-label">照顧者覆盤精準率</div>
+        <div class="metric-value" id="kpiAccuracy">100%</div>
+        <div class="metric-desc">扣除誤報標記後精準度</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">主要配置區域</div>
+        <div class="metric-value" id="kpiHighRiskZone" style="font-size: 20px;">浴室門口</div>
+        <div class="metric-desc" id="kpiZoneDesc">攝影機所屬區域</div>
+      </div>
+    </div>
+
+    <!-- 類別切換：事件黑盒子 vs 24小時連續錄影 -->
+    <div class="category-tabs">
+      <button class="category-tab active" id="tabBtnEvents" onclick="switchCategory('events')">
+        異常事件黑盒子 (<span id="countEventsTab">0</span>)
+      </button>
+      <button class="category-tab" id="tabBtnDaily" onclick="switchCategory('daily')">
+        24小時連續錄影檔案庫 (<span id="countDailyTab">0</span>)
+      </button>
+      <span class="tab-indicator" id="tabIndicator" aria-hidden="true"></span>
+    </div>
+
+    <!-- 篩選與操作列 Filter Bar -->
+    <div class="filter-bar" id="eventFilterBar">
+      <div class="filter-tabs" id="filterTabs">
+        <button class="filter-btn active" data-filter="all" onclick="applyFilter('all')">全部事件 (<span
+            id="countAll">0</span>)</button>
+        <button class="filter-btn" data-filter="pending" onclick="applyFilter('pending')">待審查 (<span
+            id="countPending">0</span>)</button>
+        <button class="filter-btn" data-filter="confirmed" onclick="applyFilter('confirmed')">確認跌倒</button>
+        <button class="filter-btn" data-filter="falsealarm" onclick="applyFilter('falsealarm')">標記誤報</button>
+      </div>
+
+      <!-- 24小時連續錄影提示標題 (切換至 daily 分頁時顯示) -->
+      <div id="dailyFilterTabs" style="display: none; align-items: center; gap: 8px;">
+        <span style="color: #78E3F5; font-weight: bold; font-size: 14px;">24小時連續錄影檔案總覽</span>
+      </div>
+
+      <div class="filter-actions">
+        <button class="filter-btn" onclick="fetchBackendRecords()">重新整理資料夾</button>
+        <button class="filter-btn" id="btnMarkAllReviewed" onclick="markAllAsReviewed()">全部標為已讀</button>
+        <button class="filter-btn" id="btnDeleteAllRecords" style="border: 1.5px solid #FF8066; color: #FF8066;"
+          onclick="confirmDeleteAllRecords()" title="清空當前分類下的所有實體影片">一鍵清空目前影片</button>
+      </div>
+    </div>
+
+    <!-- 雙欄主版面 -->
+    <div class="main-grid">
+      <!-- 左欄：內容展示區 -->
+      <div class="panel-viewport" id="panelViewport">
+        <div class="panel-track" id="panelTrack">
+          <!-- 事件黑盒子串流清單 -->
+          <div class="panel incident-stream" id="incidentStream">
+            <div style="text-align: center; padding: 40px; color: rgba(245, 241, 234, 0.62);">正在讀取 event_videos 與
+              event_images 資料</div>
+          </div>
+
+          <!-- 24小時連續錄影檔案清單 (預設隱藏) -->
+          <div class="panel is-inactive" id="dailyStream" aria-hidden="true" inert>
+            <table class="daily-table">
+              <thead>
+                <tr>
+                  <th style="width: 44px; text-align: center;">
+                    <input type="checkbox" id="selectAllDailyTh" onchange="toggleSelectAll(this.checked)"
+                      style="width:16px; height:16px; cursor:pointer; accent-color:#78E3F5;" title="全選/取消全選" />
+                  </th>
+                  <th>錄影檔案名稱</th>
+                  <th>所屬區域 / 攝影機</th>
+                  <th>錄製時間</th>
+                  <th>大小</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="dailyTableBody">
+                <tr>
+                  <td colspan="6" style="text-align: center; color: rgba(245, 241, 234, 0.62);">正在掃描 daily_videos 資料夾
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右欄：錄影週期與事件緩衝設定側邊欄 -->
+      <div class="analytics-sidebar">
+        <!-- 錄影保留與事件前後緩衝設定 -->
+        <div class="analysis-card" style="border: 1.5px solid #78E3F5;">
+          <div class="analysis-title" style="color: #78E3F5;">
+            <span>錄影保留與事件秒數設定</span>
+          </div>
+
+          <!-- 24小時連續錄影保留天數 -->
+          <div class="tuning-group">
+            <div class="tuning-label">
+              <span>24小時連續錄影保留天數</span>
+              <strong id="retentionDaysVal" style="color:#78E3F5;">3 天</strong>
+            </div>
+            <input type="range" class="range-slider" min="1" max="30" step="1" value="3" id="retentionDaysSlider"
+              oninput="updateRetentionDaysLabel(this.value)">
+            <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">
+              <button type="button" class="filter-btn" style="padding:2px 8px; font-size:11px;"
+                onclick="setRetentionPill(1)">1天</button>
+              <button type="button" class="filter-btn" style="padding:2px 8px; font-size:11px;"
+                onclick="setRetentionPill(3)">3天</button>
+              <button type="button" class="filter-btn" style="padding:2px 8px; font-size:11px;"
+                onclick="setRetentionPill(7)">7天</button>
+              <button type="button" class="filter-btn" style="padding:2px 8px; font-size:11px;"
+                onclick="setRetentionPill(14)">14天</button>
+              <button type="button" class="filter-btn" style="padding:2px 8px; font-size:11px;"
+                onclick="setRetentionPill(30)">30天</button>
+            </div>
+            <div style="font-size: 11px; color: rgba(245, 241, 234, 0.62); margin-top: 6px;">超過天數之連續錄影分段檔將由背景引擎自動清理釋放空間
+            </div>
+          </div>
+
+          <!-- 異常事件黑盒子保留天數 -->
+          <div class="tuning-group">
+            <div class="tuning-label">
+              <span>異常事件黑盒子保留天數</span>
+              <strong id="eventRetentionDaysVal" style="color:#78E3F5;">30 天</strong>
+            </div>
+            <input type="range" class="range-slider" min="1" max="30" step="1" value="30" id="eventRetentionDaysSlider"
+              oninput="updateEventRetentionDaysLabel(this.value)">
+            <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">
+              <button type="button" class="filter-btn" style="padding:2px 8px; font-size:11px;"
+                onclick="setEventRetentionPill(1)">1天</button>
+              <button type="button" class="filter-btn" style="padding:2px 8px; font-size:11px;"
+                onclick="setEventRetentionPill(3)">3天</button>
+              <button type="button" class="filter-btn" style="padding:2px 8px; font-size:11px;"
+                onclick="setEventRetentionPill(7)">7天</button>
+              <button type="button" class="filter-btn" style="padding:2px 8px; font-size:11px;"
+                onclick="setEventRetentionPill(14)">14天</button>
+              <button type="button" class="filter-btn" style="padding:2px 8px; font-size:11px;"
+                onclick="setEventRetentionPill(30)">30天</button>
+            </div>
+            <div style="font-size: 11px; color: rgba(245, 241, 234, 0.62); margin-top: 6px;">超過天數之事件影片與事件截圖檔將自動清理釋放空間
+            </div>
+          </div>
+
+          <!-- 跌倒前錄影秒數 -->
+          <div class="tuning-group">
+            <div class="tuning-label">
+              <span>跌倒事件前緩衝秒數</span>
+              <strong id="preFallSecVal" style="color:#78E3F5;">跌倒前 15 秒</strong>
+            </div>
+            <input type="range" class="range-slider" min="5" max="30" step="1" value="15" id="preFallSecSlider"
+              oninput="updatePreFallSecLabel(this.value)">
+            <div style="font-size: 11px; color: rgba(245, 241, 234, 0.62); margin-top: 4px;">回溯跌倒前的行進與肢體變化 (5～30秒)</div>
+          </div>
+
+          <!-- 跌倒後錄影秒數 -->
+          <div class="tuning-group">
+            <div class="tuning-label">
+              <span>跌倒事件後緩衝秒數</span>
+              <strong id="postFallSecVal" style="color:#78E3F5;">跌倒後 15 秒</strong>
+            </div>
+            <input type="range" class="range-slider" min="5" max="30" step="1" value="15" id="postFallSecSlider"
+              oninput="updatePostFallSecLabel(this.value)">
+            <div style="font-size: 11px; color: rgba(245, 241, 234, 0.62); margin-top: 4px;">記錄跌倒後的著地與長輩反應狀況 (5～30秒)
+            </div>
+          </div>
+
+          <!-- 總長度預覽徽章 -->
+          <div
+            style="background: rgba(120, 227, 245, 0.1); border: 1px solid rgba(120, 227, 245, 0.3); border-radius: 0; padding: 10px; margin-bottom: 14px; font-size: 12px; color: #78E3F5;">
+            事件精華影片總長度：<strong id="totalBufferSecPreview" style="color:#F5F1EA;">30 秒 (前 15 秒 + 後 15 秒)</strong>
+          </div>
+
+          <button class="btn-save-tune" onclick="saveRecordingSettings()" style="width:100%;">儲存錄影與保留設定</button>
+        </div>
+
+        <!-- 整合導引卡片 -->
+        <div class="analysis-card">
+          <div class="analysis-title">
+            <span>姿態防誤判與區域分析已整合</span>
+          </div>
+          <p style="font-size:12px; color:rgba(245, 241, 234, 0.62); line-height:1.6; margin:0 0 12px 0;">
+            「姿態防誤判微調 (Debounce Tuning)」、「24 小時事件發生時段統計」與「跌倒區域次數分析」已統一整合至警報設定控制中心進行深度分析。
+          </p>
+          <a href="三階段警報.html" class="filter-btn"
+            style="display:flex; align-items:center; justify-content:center; gap:6px; text-decoration:none; color:#78E3F5; border-color:#78E3F5; padding:8px; text-align:center;">
+            前往警報設定與模型中心 →
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 批次選取刪除工具列 -->
+  <div id="batchActionBar" class="batch-action-bar" style="display:none;">
+    <div class="batch-action-inner">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <label
+          style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:14px; font-weight:500; color:#F5F1EA;">
+          <input type="checkbox" id="batchSelectAllCheckbox" onchange="toggleSelectAll(this.checked)"
+            style="width:16px; height:16px; cursor:pointer; accent-color:#78E3F5;" />
+          全選此分類影片
+        </label>
+        <span style="color:rgba(245, 241, 234, 0.25); font-size:14px;">|</span>
+        <span style="color:#78E3F5; font-size:14px; font-weight:bold;">已選取 <span id="batchSelectedCount">0</span>
+          部影片</span>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button class="btn-batch-delete" onclick="confirmDeleteSelectedRecords()">
+          批次刪除選取影片 (<span id="batchDeleteBtnCount">0</span>)
+        </button>
+        <button class="btn-batch-cancel" onclick="clearBatchSelection()">
+          ✕ 取消選取
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 事件錄影 30 秒回放與高清照片彈窗 -->
+  <div class="cam-modal-backdrop" id="playbackModal">
+    <div class="cam-modal-window" style="max-width: 780px;">
+      <div class="modal-topbar">
+        <div class="modal-title" id="playbackModalTitle">黑盒子 30 秒錄影回放</div>
+        <button class="modal-close-btn" onclick="closePlaybackModal()">&times;</button>
+      </div>
+      <div style="padding: 20px; background: rgba(10, 10, 24, 0.55); text-align: center;">
+        <div id="videoErrorMsg"
+          style="display: none; padding: 14px; background: rgba(255, 128, 102, 0.15); border: 1px solid #FF8066; border-radius: 0; color: #FF8066; margin-bottom: 12px; font-size: 13px; text-align: left;">
+          <strong>影片載入提醒：</strong> 若瀏覽器解碼延遲或格式受限，您可以直接：
+          <div style="margin-top: 8px;">
+            <a id="videoDirectDownloadBtn" href="#" class="filter-btn"
+              style="display: inline-block; text-decoration: none; padding: 6px 14px; background: #78E3F5; color: #000; font-weight: bold; border: none;"
+              download>⬇ 下載原檔播放</a>
+          </div>
+        </div>
+        <video id="playbackVideo" controls
+          style="width: 100%; border-radius: 0; display: none; max-height: 460px; background: #000;"
+          playsinline></video>
+        <img id="playbackImage"
+          style="width: 100%; border-radius: 0; display: none; max-height: 460px; object-fit: contain; background: #000;"
+          alt="事件截圖" />
+
+        <div class="modal-desc-box">
+          <div>
+            <div style="color: #F5F1EA; font-weight: bold;" id="modalEventName">CAM 0 · 異常事件</div>
+            <div style="color: rgba(245, 241, 234, 0.62); font-size: 12px; margin-top: 4px;" id="modalEventTime">
+              2026/09/21 00:00:00</div>
+          </div>
+          <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+            <div style="color: #78E3F5;" id="modalEventStats">實體錄影回放</div>
+            <div style="color: rgba(245, 241, 234, 0.4); font-size: 12px;" id="modalEventDetail">檔案大小：-</div>
+            <a id="modalDownloadBtn" href="#" class="filter-btn"
+              style="display: none; padding: 3px 10px; font-size: 12px; text-decoration: none;" download>⬇ 下載檔案</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/shared.js"></script>
+  <script>
+    function toggleMenu() {
+      document.getElementById('hamburgerMenu').classList.toggle('open');
+    }
+
+    document.addEventListener('click', function (e) {
+      const menu = document.getElementById('hamburgerMenu');
+      if (menu && !menu.contains(e.target)) {
+        menu.classList.remove('open');
+      }
+    });
+
+    // ====== 全域狀態 ======
+    let currentCategory = 'events'; // 'events' | 'daily'
+    let currentFilter = 'all';      // 'all' | 'pending' | 'confirmed' | 'falsealarm'
+    let backendRecords = {
+      events: [],
+      images: [],
+      daily: [],
+      cameras: []
+    };
+
+    // 從 localStorage 讀取審查標記 (依照檔名為 key)
+    function getReviewsMap() {
+      try {
+        return JSON.parse(localStorage.getItem("edge_vision_file_reviews") || "{}");
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function setReviewStatus(fileKey, status, videoFile, imageFile) {
+      const map = getReviewsMap();
+      const isCurrent = (map[fileKey] === status);
+      if (isCurrent) {
+        delete map[fileKey];
+      } else {
+        map[fileKey] = status;
+      }
+      localStorage.setItem("edge_vision_file_reviews", JSON.stringify(map));
+      updateKPIs();
+      renderIncidentList();
+
+      // 🌟 當標示誤報 (或取消標記誤報) 時，同步將事件影片與截圖丟入後台微調資料夾 (false_positives，供後續模型訓練微調，UI 不呈現)
+      let vFile = videoFile;
+      let iFile = imageFile;
+      if (!vFile && !iFile) {
+        if (fileKey && fileKey.endsWith('.mp4')) vFile = fileKey;
+        else if (fileKey && fileKey.match(/\.(jpg|png|jpeg)$/i)) iFile = fileKey;
+      }
+
+      if (status === 'falsealarm' || isCurrent) {
+        const isMarkingFalse = !isCurrent && (status === 'falsealarm');
+        fetch('/api/records/mark_false_alarm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filename: vFile || null,
+            image_filename: iFile || null,
+            is_false_alarm: isMarkingFalse
+          })
+        }).then(res => res.json()).then(res => {
+          console.log("誤報事件微調資料庫同步：", res);
+        }).catch(err => {
+          console.error("誤報事件同步異常：", err);
+        });
+      }
+    }
+
+    function markAllAsReviewed() {
+      const map = getReviewsMap();
+      backendRecords.events.forEach(item => {
+        if (!map[item.filename]) {
+          map[item.filename] = 'confirmed';
+        }
+      });
+      backendRecords.images.forEach(item => {
+        if (!map[item.filename]) {
+          map[item.filename] = 'confirmed';
+        }
+      });
+      localStorage.setItem("edge_vision_file_reviews", JSON.stringify(map));
+      updateKPIs();
+      renderIncidentList();
+    }
+
+    // ====== 切換分頁類別 (事件黑盒子 vs 24小時連續錄影) ======
+    function switchCategory(cat) {
+      currentCategory = cat;
+      clearBatchSelection();
+      document.getElementById("tabBtnEvents").classList.toggle("active", cat === 'events');
+      document.getElementById("tabBtnDaily").classList.toggle("active", cat === 'daily');
+
+      const filterTabs = document.getElementById("filterTabs");
+      const dailyFilterTabs = document.getElementById("dailyFilterTabs");
+      const btnMarkAllReviewed = document.getElementById("btnMarkAllReviewed");
+      const btnDeleteAll = document.getElementById("btnDeleteAllRecords");
+
+      // 內容左右滑動（不再用 display 切換）
+      slideToCategory(cat);
+
+      if (cat === 'events') {
+        if (filterTabs) filterTabs.style.display = "flex";
+        if (dailyFilterTabs) dailyFilterTabs.style.display = "none";
+        if (btnMarkAllReviewed) btnMarkAllReviewed.style.display = "inline-block";
+        if (btnDeleteAll) btnDeleteAll.innerText = "一鍵清空事件影片";
+        renderIncidentList();
+      } else {
+        if (filterTabs) filterTabs.style.display = "none";
+        if (dailyFilterTabs) dailyFilterTabs.style.display = "flex";
+        if (btnMarkAllReviewed) btnMarkAllReviewed.style.display = "none";
+        if (btnDeleteAll) btnDeleteAll.innerText = "一鍵清空連續錄影";
+        renderDailyList();
+      }
+    }
+
+    // ====== 滑動效果：底線指示器 + 內容左右滑動 + 高度平滑變化 ======
+    function moveTabIndicator() {
+      const active = document.querySelector(".category-tab.active");
+      const indicator = document.getElementById("tabIndicator");
+      if (!active || !indicator) return;
+      indicator.style.width = active.offsetWidth + "px";
+      indicator.style.transform = `translateX(${active.offsetLeft}px)`;
+    }
+
+    function updatePanelHeight() {
+      const viewport = document.getElementById("panelViewport");
+      const activePanel = document.getElementById(currentCategory === 'events' ? "incidentStream" : "dailyStream");
+      if (viewport && activePanel) viewport.style.height = activePanel.offsetHeight + "px";
+    }
+
+    function slideToCategory(cat) {
+      const track = document.getElementById("panelTrack");
+      const events = document.getElementById("incidentStream");
+      const daily = document.getElementById("dailyStream");
+      track.classList.toggle("show-daily", cat === 'daily');
+      [[events, cat === 'events'], [daily, cat === 'daily']].forEach(([panel, on]) => {
+        panel.classList.toggle("is-inactive", !on);
+        panel.toggleAttribute("inert", !on);          // 看不到的那一頁不能被點到
+        panel.setAttribute("aria-hidden", on ? "false" : "true");
+      });
+      moveTabIndicator();
+      requestAnimationFrame(updatePanelHeight);
+    }
+
+    // 清單內容變動（載入、篩選、刪除）時自動調整高度
+    if (window.ResizeObserver) {
+      const ro = new ResizeObserver(updatePanelHeight);
+      ro.observe(document.getElementById("incidentStream"));
+      ro.observe(document.getElementById("dailyStream"));
+    }
+    window.addEventListener("resize", () => { moveTabIndicator(); updatePanelHeight(); });
+    window.addEventListener("load", () => { moveTabIndicator(); updatePanelHeight(); });
+
+    // 手機 / 觸控板：左右滑動也能切換
+    (function enableSwipe() {
+      const vp = document.getElementById("panelViewport");
+      let startX = 0, startY = 0;
+      vp.addEventListener("touchstart", (e) => {
+        startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+      }, { passive: true });
+      vp.addEventListener("touchend", (e) => {
+        const dx = e.changedTouches[0].clientX - startX;
+        const dy = e.changedTouches[0].clientY - startY;
+        if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+          if (dx < 0 && currentCategory === 'events') switchCategory('daily');
+          if (dx > 0 && currentCategory === 'daily') switchCategory('events');
+        }
+      }, { passive: true });
+    })();
+
+    function applyFilter(filter) {
+      currentFilter = filter;
+      document.querySelectorAll(".filter-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.getAttribute("data-filter") === filter);
+      });
+      clearBatchSelection();
+      renderIncidentList();
+    }
+
+    // ====== 從後端拉取所有實體檔案 ======
+    function fetchBackendRecords() {
+      fetch('/api/records/all')
+        .then(res => res.json())
+        .then(data => {
+          backendRecords = data;
+          updateKPIs();
+          updateZoneAnalytics();
+          if (currentCategory === 'events') {
+            renderIncidentList();
+          } else {
+            renderDailyList();
+          }
+        })
+        .catch(err => {
+          console.error("無法拉取實體錄影資料:", err);
+        });
+    }
+
+    // 取得攝影機名稱與區域
+    function getCamInfo(idx) {
+      if (backendRecords.cameras && backendRecords.cameras[idx]) {
+        return backendRecords.cameras[idx];
+      }
+      return { name: `CAM ${idx}`, zone: "未設定區域" };
+    }
+
+    // 從檔名解析相機編號 (例: cam0_event_2026... -> 0)
+    function parseCamIdx(filename) {
+      const m = filename.match(/^cam(\d+)_/);
+      return m ? parseInt(m[1]) : 0;
+    }
+
+    // ====== 渲染事件黑盒子清單 (100% 真實檔案) ======
+    function renderIncidentList() {
+      const container = document.getElementById("incidentStream");
+      const reviews = getReviewsMap();
+
+      // 將 event_videos 與 event_images 結合建立條目
+      const items = [];
+      const usedImages = new Set();
+
+      // 1. 每部 event_video 建立一筆事件
+      backendRecords.events.forEach(vid => {
+        const camIdx = parseCamIdx(vid.filename);
+        const camInfo = getCamInfo(camIdx);
+
+        // 尋找匹配的快照圖片 (時間戳記最接近者)
+        const baseTime = vid.filename.replace(/^cam\d+_event_/, "").replace(".mp4", "");
+        let matchedImg = backendRecords.images.find(img => img.filename.includes(baseTime));
+        if (matchedImg) usedImages.add(matchedImg.filename);
+
+        const review = reviews[vid.filename] || 'unreviewed';
+
+        items.push({
+          type: 'video',
+          key: vid.filename,
+          videoFile: vid.filename,
+          imageFile: matchedImg ? matchedImg.filename : null,
+          cam: camInfo.name,
+          zone: camInfo.zone,
+          time: vid.time_str,
+          sizeStr: `${vid.size_mb} MB`,
+          reviewStatus: review
+        });
+      });
+
+      // 2. 若有未被影片包含的獨立快照，也呈現為事件
+      backendRecords.images.forEach(img => {
+        if (!usedImages.has(img.filename)) {
+          const camIdx = parseCamIdx(img.filename);
+          const camInfo = getCamInfo(camIdx);
+          const review = reviews[img.filename] || 'unreviewed';
+          items.push({
+            type: 'image',
+            key: img.filename,
+            videoFile: null,
+            imageFile: img.filename,
+            cam: camInfo.name,
+            zone: camInfo.zone,
+            time: img.time_str,
+            sizeStr: `${img.size_kb} KB (截圖)`,
+            reviewStatus: review
+          });
+        }
+      });
+
+      // 依篩選條件過濾
+      const filtered = items.filter(item => {
+        if (currentFilter === 'all') return true;
+        if (currentFilter === 'pending') return item.reviewStatus === 'unreviewed';
+        return item.reviewStatus === currentFilter;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+        <div style="text-align: center; padding: 60px 20px; background: rgba(23, 28, 35, 0.55); border: 1px solid rgba(245, 241, 234, 0.12); border-radius: 0;">
+          <div style="color: #F5F1EA; font-size: 16px; font-weight: bold;">目前資料夾中無符合篩選條件之事件</div>
+          <div style="color: rgba(245, 241, 234, 0.62); font-size: 13px; margin-top: 6px;">您可以點擊右上角 產生測試快照與錄影 進行即時實體檔案生成與驗證。</div>
+        </div>`;
+        return;
+      }
+
+      container.innerHTML = "";
+      filtered.forEach(item => {
+        let statusBadge = `<span class="ic-status-badge danger">待覆盤審查</span>`;
+        if (item.reviewStatus === 'confirmed') {
+          statusBadge = `<span class="ic-status-badge danger">已確認真實跌倒</span>`;
+        } else if (item.reviewStatus === 'falsealarm') {
+          statusBadge = `<span class="ic-status-badge warning">已標記誤報</span>`;
+        }
+
+        const card = document.createElement("div");
+        card.className = `incident-card ${item.reviewStatus === 'unreviewed' ? 'unreviewed' : ''}`;
+
+        const imgSrc = item.imageFile ? `/event_images/${encodeURIComponent(item.imageFile)}` : "";
+        const thumbHtml = imgSrc ?
+          `<img src="${imgSrc}" class="ic-thumb-img" alt="截圖" />` :
+          `<div style="color:rgba(245, 241, 234, 0.62); font-size:12px; display:flex; align-items:center; justify-content:center; height:100%;">🎬 點擊播放錄影</div>`;
+
+        card.innerHTML = `
+        <div class="ic-header">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <input type="checkbox" class="record-select-cb" data-vfile="${item.videoFile || ''}" data-ifile="${item.imageFile || ''}" onchange="onItemSelectionChanged()" style="width:16px; height:16px; cursor:pointer; accent-color:#78E3F5;" title="勾選此事件" />
+            <div class="ic-location">
+              ${item.cam} <span style="color:#78E3F5; font-weight:normal; font-size:13px;">(${item.zone})</span>
+              ${statusBadge}
+            </div>
+          </div>
+          <div class="ic-time">${item.time}</div>
+        </div>
+
+        <div class="ic-body">
+          <div class="ic-thumb-box" onclick="openPlaybackModal('${item.videoFile || ''}', '${item.videoFile ? '' : (item.imageFile || '')}', '${item.cam} · ${item.zone}', '${item.time}', '${item.sizeStr}')">
+            ${thumbHtml}
+            ${item.videoFile ? `
+            <div class="ic-play-overlay">
+              <div class="play-icon">▶</div>
+            </div>` : ''}
+          </div>
+
+          <div class="ic-data-list">
+            <div class="ic-data-row">
+              <span class="ic-data-k">實體存檔</span>
+              <span class="ic-data-v">${item.videoFile && item.imageFile ? '影片與截圖' : (item.videoFile ? '30秒事件影片' : '事件瞬間截圖')}</span>
+            </div>
+            <div class="ic-data-row">
+              <span class="ic-data-k">檔案大小</span>
+              <span class="ic-data-v" style="color:#78E3F5;">${item.sizeStr}</span>
+            </div>
+            <div class="ic-data-row">
+              <span class="ic-data-k">實體檔名</span>
+              <span class="ic-data-v" style="font-size:11px; color:rgba(245, 241, 234, 0.62); word-break:break-all;">${item.videoFile || item.imageFile}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="ic-footer">
+          <div class="tag-btn-group">
+            <button class="tag-btn ${item.reviewStatus === 'confirmed' ? 'active confirmed' : ''}" onclick="setReviewStatus('${item.key}', 'confirmed', '${item.videoFile || ''}', '${item.imageFile || ''}')">確認事件</button>
+            <button class="tag-btn ${item.reviewStatus === 'falsealarm' ? 'active falsealarm' : ''}" onclick="setReviewStatus('${item.key}', 'falsealarm', '${item.videoFile || ''}', '${item.imageFile || ''}')">標記誤報</button>
+            <button class="tag-btn" style="border-color:#FF8066; color:#FF8066;" onclick="deleteSingleIncident('${item.videoFile || ''}', '${item.imageFile || ''}')" title="刪除此筆事件紀錄">刪除</button>
+          </div>
+
+          ${item.imageFile ? `
+          <button class="btn-open-video" onclick="openPlaybackModal('', '${item.imageFile}', '${item.cam} · ${item.zone}', '${item.time}', '${item.sizeStr}')">
+            <span>檢視截圖</span>
+          </button>
+          ` : `
+          <button class="btn-open-video" onclick="openPlaybackModal('${item.videoFile}', '', '${item.cam} · ${item.zone}', '${item.time}', '${item.sizeStr}')">
+            <span>觀看 30 秒錄影</span>
+          </button>
+          `}
+        </div>
+      `;
+
+        container.appendChild(card);
+      });
+    }
+
+    // ====== 渲染 24 小時連續錄影清單 ======
+    function renderDailyList() {
+      const tbody = document.getElementById("dailyTableBody");
+      const dailyFiles = backendRecords.daily || [];
+
+      if (dailyFiles.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: rgba(245, 241, 234, 0.62); padding: 40px;">目前 daily_videos 資料夾尚無連續錄影檔案。</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = "";
+      dailyFiles.forEach(file => {
+        const camIdx = parseCamIdx(file.filename);
+        const camInfo = getCamInfo(camIdx);
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+        <td style="text-align: center;">
+          <input type="checkbox" class="record-select-cb" data-vfile="${file.filename}" data-ifile="" onchange="onItemSelectionChanged()" style="width:16px; height:16px; cursor:pointer; accent-color:#78E3F5;" title="勾選此檔案" />
+        </td>
+        <td style="color:#F5F1EA; font-weight:500;">${file.filename}</td>
+        <td>${camInfo.name} <span style="color:#78E3F5;">(${camInfo.zone})</span></td>
+        <td style="color:rgba(245, 241, 234, 0.62);">${file.time_str}</td>
+        <td style="color:#78E3F5;">${file.size_mb} MB</td>
+        <td>
+          <button class="filter-btn" style="padding:4px 10px; font-size:12px;" onclick="openPlaybackModal('${file.filename}', '', '${camInfo.name} · ${camInfo.zone}', '${file.time_str}', '${file.size_mb} MB', true)">
+            ▶ 播放回放
+          </button>
+          <a class="filter-btn" style="padding:4px 10px; font-size:12px; text-decoration:none; display:inline-block;" href="/daily_videos/${encodeURIComponent(file.filename)}" download>
+            ⬇ 下載
+          </a>
+          <button class="filter-btn" style="padding:4px 10px; font-size:12px; border-color:#FF8066; color:#FF8066;" onclick="deleteSingleDaily('${file.filename}')">
+            刪除
+          </button>
+        </td>
+      `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // ====== 影片刪除功能 (單個刪除、多選批次刪除、一鍵清空) ======
+
+    // 1. 單個刪除事件錄影與快照
+    function deleteSingleIncident(vFile, iFile) {
+      const targetName = vFile || iFile;
+      if (!confirm(`確定要刪除此筆事件紀錄及相關檔案嗎？\n檔名：${targetName}\n\n注意：此操作無法復原。`)) return;
+
+      fetch("/api/records/delete_single", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: "events",
+          filename: vFile,
+          image_filename: iFile
+        })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            alert("事件紀錄已刪除！");
+            clearBatchSelection();
+            fetchBackendRecords();
+          } else {
+            alert("刪除失敗：" + (data.error || "未知錯誤"));
+          }
+        })
+        .catch(err => console.error("刪除事件失敗:", err));
+    }
+
+    // 2. 單個刪除 24 小時連續錄影
+    function deleteSingleDaily(vFile) {
+      if (!confirm(`確定要刪除連續錄影檔案「${vFile}」嗎？\n\n注意：此操作無法復原。`)) return;
+
+      fetch("/api/records/delete_single", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: "daily",
+          filename: vFile
+        })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            alert("連續錄影檔案已刪除！");
+            clearBatchSelection();
+            fetchBackendRecords();
+          } else {
+            alert("刪除失敗：" + (data.error || "未知錯誤"));
+          }
+        })
+        .catch(err => console.error("刪除連續錄影失敗:", err));
+    }
+
+    // 3. 批次選取操作
+    function onItemSelectionChanged() {
+      const checkedBoxes = document.querySelectorAll(".record-select-cb:checked");
+      const count = checkedBoxes.length;
+      const bar = document.getElementById("batchActionBar");
+      const countEl = document.getElementById("batchSelectedCount");
+      const btnCountEl = document.getElementById("batchDeleteBtnCount");
+
+      if (count > 0) {
+        bar.style.display = "block";
+        if (countEl) countEl.innerText = count;
+        if (btnCountEl) btnCountEl.innerText = count;
+      } else {
+        bar.style.display = "none";
+      }
+    }
+
+    function toggleSelectAll(checked) {
+      const visibleCheckboxes = document.querySelectorAll(".record-select-cb");
+      visibleCheckboxes.forEach(cb => {
+        cb.checked = checked;
+      });
+      const selectAllTh = document.getElementById("selectAllDailyTh");
+      if (selectAllTh) selectAllTh.checked = checked;
+      const batchSelectAll = document.getElementById("batchSelectAllCheckbox");
+      if (batchSelectAll) batchSelectAll.checked = checked;
+
+      onItemSelectionChanged();
+    }
+
+    function clearBatchSelection() {
+      document.querySelectorAll(".record-select-cb").forEach(cb => cb.checked = false);
+      const selectAllTh = document.getElementById("selectAllDailyTh");
+      if (selectAllTh) selectAllTh.checked = false;
+      const batchSelectAll = document.getElementById("batchSelectAllCheckbox");
+      if (batchSelectAll) batchSelectAll.checked = false;
+      const bar = document.getElementById("batchActionBar");
+      if (bar) bar.style.display = "none";
+    }
+
+    function confirmDeleteSelectedRecords() {
+      const checkedBoxes = Array.from(document.querySelectorAll(".record-select-cb:checked"));
+      if (checkedBoxes.length === 0) return;
+
+      const count = checkedBoxes.length;
+      if (!confirm(`確定要批次刪除已選取的 ${count} 部影片檔案嗎？\n\n注意：此操作無法復原！`)) return;
+
+      const items = checkedBoxes.map(cb => ({
+        filename: cb.getAttribute("data-vfile") || null,
+        image_filename: cb.getAttribute("data-ifile") || null
+      }));
+
+      fetch("/api/records/delete_batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: currentCategory,
+          items: items
+        })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            alert(`已批次刪除 ${data.deleted_count} 個檔案！`);
+            clearBatchSelection();
+            fetchBackendRecords();
+          } else {
+            alert("批次刪除失敗：" + (data.error || "未知錯誤"));
+          }
+        })
+        .catch(err => console.error("批次刪除失敗:", err));
+    }
+
+    // 4. 一鍵清空當前分類所有影片
+    function confirmDeleteAllRecords() {
+      const catName = currentCategory === 'events' ? "異常事件黑盒子（所有事件錄影與截圖）" : "24小時連續錄影檔案庫";
+      const msg = `您確定要「一鍵清空」${catName}嗎？\n\n警告：此分類下的所有影片將全數永久刪除！`;
+      if (!confirm(msg)) return;
+      if (!confirm(`請再次確認：確定要徹底清空所有 ${currentCategory === 'events' ? '事件' : '連續錄影'} 影片嗎？`)) return;
+
+      fetch("/api/records/delete_all", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: currentCategory
+        })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            alert(`已完成一鍵清空！共刪除 ${data.deleted_count} 個影片與截圖檔案。`);
+            clearBatchSelection();
+            fetchBackendRecords();
+          } else {
+            alert("一鍵清空失敗：" + (data.error || "未知錯誤"));
+          }
+        })
+        .catch(err => console.error("一鍵清空失敗:", err));
+    }
+
+    // ====== 30 秒錄影 / 照片播放彈窗 ======
+    function openPlaybackModal(vFile, iFile, title, timeStr, sizeStr, isDaily = false) {
+      const modal = document.getElementById("playbackModal");
+      const video = document.getElementById("playbackVideo");
+      const img = document.getElementById("playbackImage");
+      const errBox = document.getElementById("videoErrorMsg");
+      const dlBtn = document.getElementById("modalDownloadBtn");
+      const directDl = document.getElementById("videoDirectDownloadBtn");
+
+      if (errBox) errBox.style.display = "none";
+
+      document.getElementById("playbackModalTitle").textContent = isDaily ? "24 小時連續錄影回放" : (vFile ? "黑盒子 30 秒事件錄影" : "跌倒瞬間快照檢視");
+      document.getElementById("modalEventName").textContent = title;
+      document.getElementById("modalEventTime").textContent = timeStr;
+      document.getElementById("modalEventDetail").textContent = `檔案大小：${sizeStr}`;
+
+      modal.classList.add("open");
+
+      if (vFile) {
+        img.style.display = "none";
+        video.style.display = "block";
+        const videoUrl = isDaily ? `/daily_videos/${encodeURIComponent(vFile)}` : `/event_videos/${encodeURIComponent(vFile)}`;
+
+        if (dlBtn) {
+          dlBtn.style.display = "inline-block";
+          dlBtn.href = videoUrl;
+          dlBtn.setAttribute("download", vFile);
+        }
+        if (directDl) {
+          directDl.href = videoUrl;
+          directDl.setAttribute("download", vFile);
+        }
+
+        video.onerror = function () {
+          console.warn("Video playback error for", videoUrl);
+          if (errBox) errBox.style.display = "block";
+        };
+
+        video.pause();
+        video.src = videoUrl;
+        video.load();
+        video.play().catch(e => {
+          console.log("Autoplay notification:", e);
+        });
+      } else if (iFile) {
+        video.style.display = "none";
+        video.pause();
+        video.removeAttribute("src");
+        img.style.display = "block";
+        const imgUrl = `/event_images/${encodeURIComponent(iFile)}`;
+        img.src = imgUrl;
+
+        if (dlBtn) {
+          dlBtn.style.display = "inline-block";
+          dlBtn.href = imgUrl;
+          dlBtn.setAttribute("download", iFile);
+        }
+      }
+    }
+
+    function closePlaybackModal() {
+      const modal = document.getElementById("playbackModal");
+      const video = document.getElementById("playbackVideo");
+      const errBox = document.getElementById("videoErrorMsg");
+      if (video) {
+        video.pause();
+        video.removeAttribute("src");
+        video.load();
+      }
+      if (errBox) errBox.style.display = "none";
+      modal.classList.remove("open");
+    }
+
+    // ====== 更新頂部 KPI 指標 ======
+    function updateKPIs() {
+      const totalVids = backendRecords.events ? backendRecords.events.length : 0;
+      const totalImgs = backendRecords.images ? backendRecords.images.length : 0;
+      const totalDaily = backendRecords.daily ? backendRecords.daily.length : 0;
+
+      document.getElementById("kpiTotalVideos").textContent = `${totalVids} 部`;
+      document.getElementById("kpiTotalImages").textContent = `${totalImgs} 張`;
+      document.getElementById("countEventsTab").textContent = totalVids + totalImgs;
+      document.getElementById("countDailyTab").textContent = totalDaily;
+      document.getElementById("countAll").textContent = totalVids + totalImgs;
+
+      const reviews = getReviewsMap();
+      let confirmedCount = 0;
+      let falsealarmCount = 0;
+      let pendingCount = 0;
+
+      backendRecords.events.forEach(vid => {
+        const st = reviews[vid.filename] || 'unreviewed';
+        if (st === 'confirmed') confirmedCount++;
+        else if (st === 'falsealarm') falsealarmCount++;
+        else pendingCount++;
+      });
+
+      const evaluated = confirmedCount + falsealarmCount;
+      const accuracy = evaluated > 0 ? ((confirmedCount / evaluated) * 100).toFixed(1) + "%" : "100%";
+      document.getElementById("kpiAccuracy").textContent = accuracy;
+      document.getElementById("countPending").textContent = pendingCount;
+    }
+
+    // ====== 更新區域分布統計 ======
+    // ====== 更新區域分布統計 (若有容器才渲染) ======
+    function updateZoneAnalytics() {
+      const container = document.getElementById("zoneListContainer");
+      if (!container) return;
+      if (!backendRecords.cameras || backendRecords.cameras.length === 0) {
+        container.innerHTML = `<div style="color:rgba(245, 241, 234, 0.62); font-size:13px;">尚未偵測到攝影機</div>`;
+        return;
+      }
+
+      // 計算每個區域的事件數
+      const zoneCounts = {};
+      backendRecords.cameras.forEach(c => {
+        zoneCounts[c.zone] = 0;
+      });
+
+      backendRecords.events.forEach(v => {
+        const idx = parseCamIdx(v.filename);
+        const info = getCamInfo(idx);
+        zoneCounts[info.zone] = (zoneCounts[info.zone] || 0) + 1;
+      });
+
+      const total = Math.max(1, backendRecords.events.length);
+      container.innerHTML = "";
+
+      let maxZone = "浴室門口";
+      let maxPct = 0;
+
+      Object.keys(zoneCounts).forEach(zone => {
+        const count = zoneCounts[zone];
+        const pct = Math.round((count / total) * 100);
+        if (pct >= maxPct) {
+          maxPct = pct;
+          maxZone = zone;
+        }
+        const isHigh = pct >= 50;
+
+        const row = document.createElement("div");
+        row.className = "zone-row";
+        row.innerHTML = `
+        <div class="zone-info">
+          <span>📍 ${zone}</span>
+          <strong style="color:${isHigh ? '#FF8066' : '#78E3F5'};">${count} 次 (${pct}%)</strong>
+        </div>
+        <div class="zone-track"><div class="zone-fill ${isHigh ? 'high' : ''}" style="width: ${Math.max(5, pct)}%;"></div></div>
+      `;
+        container.appendChild(row);
+      });
+
+      const kpiHigh = document.getElementById("kpiHighRiskZone");
+      const kpiDesc = document.getElementById("kpiZoneDesc");
+      if (kpiHigh) kpiHigh.textContent = maxZone;
+      if (kpiDesc) kpiDesc.textContent = `集中佔比約 ${maxPct}%`;
+    }
+
+    // ====== 錄影與保留週期設定 (與後端 settings.json 真實同步) ======
+    function loadRecordingSettings() {
+      fetch('/api/settings')
+        .then(res => res.json())
+        .then(settings => {
+          if (settings.DAILY_RETENTION_DAYS !== undefined) {
+            const slider = document.getElementById("retentionDaysSlider");
+            if (slider) slider.value = settings.DAILY_RETENTION_DAYS;
+            updateRetentionDaysLabel(settings.DAILY_RETENTION_DAYS);
+          }
+          if (settings.EVENT_RETENTION_DAYS !== undefined) {
+            const slider = document.getElementById("eventRetentionDaysSlider");
+            if (slider) slider.value = settings.EVENT_RETENTION_DAYS;
+            updateEventRetentionDaysLabel(settings.EVENT_RETENTION_DAYS);
+          }
+          if (settings.PRE_FALL_SECONDS !== undefined) {
+            const slider = document.getElementById("preFallSecSlider");
+            if (slider) slider.value = settings.PRE_FALL_SECONDS;
+            updatePreFallSecLabel(settings.PRE_FALL_SECONDS);
+          }
+          if (settings.POST_FALL_SECONDS !== undefined) {
+            const slider = document.getElementById("postFallSecSlider");
+            if (slider) slider.value = settings.POST_FALL_SECONDS;
+            updatePostFallSecLabel(settings.POST_FALL_SECONDS);
+          }
+          updateTotalBufferPreview();
+        })
+        .catch(err => console.error("無法載入錄影設定:", err));
+    }
+
+    function updateRetentionDaysLabel(val) {
+      const el = document.getElementById("retentionDaysVal");
+      if (el) el.textContent = `${val} 天`;
+    }
+
+    function setRetentionPill(days) {
+      const slider = document.getElementById("retentionDaysSlider");
+      if (slider) {
+        slider.value = days;
+        updateRetentionDaysLabel(days);
+      }
+    }
+
+    function updateEventRetentionDaysLabel(val) {
+      const el = document.getElementById("eventRetentionDaysVal");
+      if (el) el.textContent = `${val} 天`;
+    }
+
+    function setEventRetentionPill(days) {
+      const slider = document.getElementById("eventRetentionDaysSlider");
+      if (slider) {
+        slider.value = days;
+        updateEventRetentionDaysLabel(days);
+      }
+    }
+
+    function updatePreFallSecLabel(val) {
+      const el = document.getElementById("preFallSecVal");
+      if (el) el.textContent = `跌倒前 ${val} 秒`;
+      updateTotalBufferPreview();
+    }
+
+    function updatePostFallSecLabel(val) {
+      const el = document.getElementById("postFallSecVal");
+      if (el) el.textContent = `跌倒後 ${val} 秒`;
+      updateTotalBufferPreview();
+    }
+
+    function updateTotalBufferPreview() {
+      const preSlider = document.getElementById("preFallSecSlider");
+      const postSlider = document.getElementById("postFallSecSlider");
+      const pre = parseInt(preSlider ? preSlider.value : 15);
+      const post = parseInt(postSlider ? postSlider.value : 15);
+      const totalEl = document.getElementById("totalBufferSecPreview");
+      if (totalEl) totalEl.textContent = `${pre + post} 秒 (前 ${pre}s + 後 ${post}s)`;
+    }
+
+    function saveRecordingSettings() {
+      const retentionSlider = document.getElementById("retentionDaysSlider");
+      const eventRetentionSlider = document.getElementById("eventRetentionDaysSlider");
+      const preSlider = document.getElementById("preFallSecSlider");
+      const postSlider = document.getElementById("postFallSecSlider");
+
+      const retention = parseInt(retentionSlider ? retentionSlider.value : 3);
+      const eventRetention = parseInt(eventRetentionSlider ? eventRetentionSlider.value : 30);
+      const pre = parseInt(preSlider ? preSlider.value : 15);
+      const post = parseInt(postSlider ? postSlider.value : 15);
+
+      fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          DAILY_RETENTION_DAYS: retention,
+          EVENT_RETENTION_DAYS: eventRetention,
+          PRE_FALL_SECONDS: pre,
+          POST_FALL_SECONDS: post
+        })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            alert(`錄影與保留週期設定已成功儲存並即時生效！\n- 連續錄影保留天數：${retention} 天\n- 異常事件保留天數：${eventRetention} 天\n- 跌倒前緩衝錄影：${pre} 秒\n- 跌倒後緩衝錄影：${post} 秒\n- 事件精華影片總長度：${pre + post} 秒`);
+          } else {
+            alert("儲存失敗，請檢查網路連線。");
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          alert("儲存設定時發生網路錯誤。");
+        });
+    }
+
+    // ====== 手動產生測試快照與事件錄影 ======
+    function triggerTestRecord() {
+      if (!confirm("確定要立即拍攝一張真實測試快照並產生 30 秒事件影片嗎？\n這將在 event_images 與 event_videos 資料夾建立檔案。")) {
+        return;
+      }
+      fetch('/api/trigger_fall_record/0', { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            alert(`測試事件已生成！\n- 快照圖片：${data.image}\n- 30秒錄影：${data.video}\n檔案庫正在重新整理`);
+            fetchBackendRecords();
+          } else {
+            alert("生成失敗，請確認攝影機是否上線。");
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          alert("發送觸發請求時發生錯誤。");
+        });
+    }
+
+    // 初始化
+    fetchBackendRecords();
+    loadBackendSettings();
+  </script>
+</body>
+
+</html>

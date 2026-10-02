@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<script src="/static/js/theme-toggle.js"></script>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>危險區域越界警報</title>
+  <link rel="stylesheet" href="/static/css/design-system.css" />
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0 !important;
+    }
+
+    /* 頂部導覽列（隨頁面滾動自然消失，不固定） */
+    .navbar-header {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 1280px;
+      height: auto;
+      background-color: transparent;
+      z-index: 2000;
+      padding: 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-sizing: border-box;
+    }
+
+    .nav-brand {
+      font-size: 20px;
+      color: #fff;
+      font-weight: bold;
+      text-decoration: none;
+      letter-spacing: 0.05em;
+    }
+
+    /* 漢堡按鈕 */
+    .hamburger-menu-wrapper {
+      position: relative;
+      z-index: 2010;
+    }
+
+    .hamburger-btn {
+      background: #1a1a20;
+      border: 1.5px solid #d4af37;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .hamburger-btn:hover {
+      background: #24242c;
+    }
+
+    .hamburger-btn span {
+      display: block;
+      width: 20px;
+      height: 2px;
+      background-color: #d4af37;
+      transition: 0.3s;
+    }
+
+    .hamburger-menu-wrapper.open .hamburger-btn span:nth-child(1) {
+      transform: translateY(7px) rotate(45deg);
+    }
+
+    .hamburger-menu-wrapper.open .hamburger-btn span:nth-child(2) {
+      opacity: 0;
+    }
+
+    .hamburger-menu-wrapper.open .hamburger-btn span:nth-child(3) {
+      transform: translateY(-7px) rotate(-45deg);
+    }
+
+    /* 下拉選單 */
+    .hamburger-dropdown {
+      position: absolute;
+      top: calc(100% + 12px);
+      right: 0;
+      width: 220px;
+      background: #16161a;
+      border: 1.5px solid #d4af37;
+      display: none;
+      flex-direction: column;
+      z-index: 2020;
+      box-shadow: -4px 12px 32px rgba(0, 0, 0, 0.85);
+    }
+
+    .hamburger-menu-wrapper.open .hamburger-dropdown {
+      display: flex;
+    }
+
+    .dropdown-item {
+      position: relative;
+      padding: 16px 20px;
+      color: #f5f5f7;
+      text-decoration: none;
+      font-size: 16px;
+      border-bottom: 1px solid #202027;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .dropdown-item:last-child {
+      border-bottom: none;
+    }
+
+    .dropdown-item:hover {
+      background: rgba(212, 175, 55, 0.12);
+      color: #ebd07a;
+    }
+
+    /* 被選中頁面的樣式 (打勾) */
+    .dropdown-item.active {
+      background: rgba(212, 175, 55, 0.2);
+      color: #ebd07a;
+      font-weight: bold;
+    }
+
+    .dropdown-item.active::after {
+      content: "✓";
+      color: #d4af37;
+      font-size: 16px;
+      position: static;
+      transform: none;
+      margin: 0;
+      box-shadow: none;
+      border: none;
+      background: transparent;
+      padding: 0;
+      visibility: visible;
+      opacity: 1;
+    }
+
+    /* 選單提示框 (Tooltip：向左展開) */
+    .dropdown-item[data-tooltip]::before {
+      content: attr(data-tooltip);
+      position: absolute;
+      right: 100%;
+      top: 50%;
+      transform: translateY(-50%);
+      margin-right: 12px;
+      background: #1a1a20;
+      color: #ebd07a;
+      padding: 8px 14px;
+      border: 1px solid #997c22;
+      font-size: 13px;
+      white-space: nowrap;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.2s ease, margin-right 0.2s ease;
+      box-shadow: -4px 6px 16px rgba(0, 0, 0, 0.6);
+      z-index: 2030;
+    }
+
+    .dropdown-item[data-tooltip]:hover::before {
+      opacity: 1;
+      visibility: visible;
+      margin-right: 16px;
+    }
+
+    /* 內容容器 */
+    .app-shell {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 32px;
+      padding-top: 80px;
+      width: 100%;
+    }
+
+    /* 標頭與按鈕區塊排版 */
+    .page-head {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    /* 返回監看金黃細框按鈕樣式 */
+    .btn-gold-outline {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: transparent;
+      border: 1.5px solid #d4af37;
+      color: #f1c40f;
+      padding: 10px 22px;
+      font-size: 15px;
+      font-weight: 400;
+      text-decoration: none;
+      letter-spacing: 1px;
+      transition: all 0.2s ease;
+      border-radius: 0px;
+      width: fit-content;
+      margin-top: 4px;
+    }
+
+    .btn-gold-outline:hover {
+      background: rgba(212, 175, 55, 0.12);
+      border-color: #f39c12;
+      color: #f39c12;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    @media (max-width: 860px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .stage {
+      aspect-ratio: 16/10;
+      position: relative;
+      background: linear-gradient(160deg, #161c2d, #0d121c);
+      border-radius: 0px;
+      border: 1px solid var(--color-border);
+      overflow: hidden;
+      cursor: crosshair;
+      margin-top: 14px;
+    }
+
+    .stage svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .setting-form {
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+      margin-top: 16px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group label {
+      font-size: 13px;
+      color: var(--color-text-muted, #9e9ea7);
+      letter-spacing: 0.05em;
+    }
+
+    .underline-input,
+    .underline-select {
+      background: transparent !important;
+      border: none !important;
+      border-bottom: 2px solid var(--color-primary, #d4af37) !important;
+      border-radius: 0 !important;
+      color: #ffffff !important;
+      font-size: 15px !important;
+      padding: 8px 4px !important;
+      width: 100% !important;
+      outline: none !important;
+      box-shadow: none !important;
+      font-family: inherit;
+      transition: border-color 0.25s ease;
+    }
+
+    .underline-input:focus,
+    .underline-select:focus {
+      border-bottom-color: var(--color-primary-light, #ebd07a) !important;
+      background: rgba(212, 175, 55, 0.05) !important;
+    }
+
+    .underline-select option {
+      background: #1a1a20;
+      color: #ffffff;
+      padding: 10px;
+    }
+
+    .btn-action-ghost {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--color-border);
+      color: var(--color-text);
+      padding: 8px 18px;
+      border-radius: 0px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .btn-action-ghost:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .btn-action-primary {
+      background: var(--color-primary, #d4af37);
+      border: 1px solid var(--color-primary);
+      color: #0d0d0f;
+      font-weight: bold;
+      padding: 8px 18px;
+      border-radius: 0px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .btn-action-primary:hover {
+      background: var(--color-primary-light, #ebd07a);
+    }
+
+    .zone-list-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      border-radius: 0px;
+      background: var(--color-bg-elevated, #16161a);
+      border: 1px solid var(--color-border-soft, #202027);
+      margin-bottom: 10px;
+      transition: all 0.2s ease;
+    }
+
+    .zone-list-item.selected-editing {
+      border-color: var(--color-primary, #d4af37);
+      background: rgba(212, 175, 55, 0.1);
+    }
+
+    .zone-swatch {
+      width: 10px;
+      height: 10px;
+      display: inline-block;
+    }
+
+    .badge-tag {
+      font-size: 12px;
+      padding: 3px 8px;
+    }
+
+    .badge-tag.orange {
+      background: var(--alert-2-orange-bg, rgba(250, 140, 22, 0.14));
+      color: var(--alert-2-orange, #fa8c16);
+      border: 1px solid rgba(250, 140, 22, 0.3);
+    }
+
+    .badge-tag.yellow {
+      background: var(--alert-1-yellow-bg, rgba(250, 173, 20, 0.12));
+      color: var(--alert-1-yellow, #faad14);
+      border: 1px solid rgba(250, 173, 20, 0.3);
+    }
+
+    .zone-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-icon-action {
+      background: transparent;
+      border: 1px solid transparent;
+      padding: 4px 8px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .btn-icon-action.delete {
+      color: #ff7875;
+      border-color: rgba(255, 77, 79, 0.3);
+    }
+  </style>
+</head>
+
+<body data-nav-active="04" style="background-color: #0b0c10; color: #e0e0e0;">
+
+  <header class="navbar-header">
+    <a href="/monitor" class="brand" title="回到即時監看"><span class="brand-name">EDGE-<b>VISION</b></span></a>
+
+    <div class="hamburger-menu-wrapper" id="hamburgerMenu">
+      <button class="hamburger-btn" onclick="toggleMenu()" aria-label="選單">
+        <span></span><span></span><span></span>
+      </button>
+
+      <div class="hamburger-dropdown">
+        <a href="/monitor" class="dropdown-item" data-tooltip="返回九宮格即時監看畫面">即時監看</a>
+        <a href="危險區域入侵越界警報.html" class="dropdown-item active" data-tooltip="框選危險區域，一旦越界即觸發警報">越界警報</a>
+        <a href="跌倒與異常姿態偵測.html" class="dropdown-item" data-tooltip="跌倒事件歷史紀錄與黑盒子覆盤">歷史紀錄</a>
+        <a href="隱私模式開關.html" class="dropdown-item" data-tooltip="暫時遮蔽鏡頭保護私密時刻">隱私模式</a>
+        <a href="三階段警報.html" class="dropdown-item" data-tooltip="三階段警報策略與 AI 模型設定">系統設定</a>
+
+        <a href="/" class="dropdown-item" data-tooltip="重新挑選照顧者或長輩身分">返回身分選擇</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="app-shell">
+    <div class="page-head">
+      <h1 style="margin: 0; font-size: 28px;">危險區域越界警報</h1>
+      <p class="muted" style="margin: 0; font-size: 14px; line-height: 1.6;">
+        在畫面上點擊描出危險區域頂點，長輩進入該區域即觸發警報。
+      </p>
+      <a class="btn-gold-outline" href="/monitor">
+        ← 回到監看
+      </a>
+    </div>
+
+    <div class="grid layout" style="margin-top: 24px;">
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <h3 id="currentCamTitle"></h3>
+          <span id="editingNotice"
+            style="display:none; font-size:12px; color:var(--color-primary-light); background:rgba(212,175,55,0.15); padding:3px 8px; border:1px solid var(--color-primary);">已載入上次設定
+            (編輯中)</span>
+        </div>
+
+
+        <div class="stage" id="stage">
+          <img id="bgVideo" src="/video_feed/0"
+            style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill;" />
+          <svg id="stageSvg" viewBox="0 0 100 100" preserveAspectRatio="none"
+            style="position: absolute; z-index: 10;"></svg>
+        </div>
+
+        <div class="row" style="margin-top:16px; justify-content: flex-end; gap: 12px;">
+          <button class="btn-action-ghost" id="newZoneBtn" type="button">清除重新繪製</button>
+          <button class="btn-action-primary" id="saveBtn" type="button">儲存修改</button>
+        </div>
+      </div>
+
+      <div class="stack" style="gap: 20px;">
+        <div class="card">
+          <h3 style="margin-bottom: 8px;">區域設定</h3>
+          <div class="setting-form">
+            <div class="form-group">
+              <label for="zoneName">區域名稱</label>
+              <input type="text" id="zoneName" class="underline-input" value="危險區域" />
+            </div>
+            <div class="form-group">
+              <label for="zoneTime">生效時段</label>
+              <select id="zoneTime" class="underline-select">
+                <option value="僅夜間 22:00–06:00" selected>僅夜間 22:00–06:00</option>
+                <option value="全天生效">全天生效</option>
+                <option value="自訂時段">自訂時段</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="zoneLevel">觸發警報等級</label>
+              <select id="zoneLevel" class="underline-select">
+                <option value="2" selected>二級警報（30秒倒數）</option>
+                <option value="1">一級提示</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-bottom: 14px;">此攝影機已設定的區域</h3>
+          <div id="zoneList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/shared.js"></script>
+  <script>
+    function toggleMenu() {
+      document.getElementById('hamburgerMenu').classList.toggle('open');
+    }
+
+    document.addEventListener('click', function (e) {
+      const menu = document.getElementById('hamburgerMenu');
+      if (menu && !menu.contains(e.target)) {
+        menu.classList.remove('open');
+      }
+    });
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentCam = urlParams.get("cam") || "樓梯口";
+    document.getElementById("currentCamTitle").textContent = `${currentCam}`;
+
+    const stage = document.getElementById("stage");
+    const svg = document.getElementById("stageSvg");
+    const zoneListContainer = document.getElementById("zoneList");
+    const editingNotice = document.getElementById("editingNotice");
+    const saveBtn = document.getElementById("saveBtn");
+    const newZoneBtn = document.getElementById("newZoneBtn");
+
+    let pointsPercent = [];
+
+    function getCameraZone() {
+      const all = JSON.parse(localStorage.getItem("edge_vision_zones") || "{}");
+      const list = all[currentCam];
+      if (list && Array.isArray(list) && list.length > 0) {
+        return list[list.length - 1];
+      }
+      return null;
+    }
+
+    function saveCameraZone(zoneData) {
+      const all = JSON.parse(localStorage.getItem("edge_vision_zones") || "{}");
+      if (zoneData) {
+        all[currentCam] = [zoneData];
+      } else {
+        delete all[currentCam];
+      }
+      localStorage.setItem("edge_vision_zones", JSON.stringify(all));
+    }
+
+    function renderSvg() {
+      svg.innerHTML = "";
+      if (pointsPercent.length === 0) return;
+
+      const isOrange = document.getElementById("zoneLevel").value === "2";
+      const color = isOrange ? "#fa8c16" : "#faad14";
+      const fillColor = isOrange ? "rgba(250,140,22,0.35)" : "rgba(250,173,20,0.35)";
+
+      pointsPercent.forEach((p) => {
+        const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        c.setAttribute("cx", p.x);
+        c.setAttribute("cy", p.y);
+        c.setAttribute("r", 2.5);
+        c.setAttribute("fill", color);
+        svg.appendChild(c);
+      });
+
+      if (pointsPercent.length > 1) {
+        const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        const pts = pointsPercent.map(p => `${p.x},${p.y}`).join(" ");
+        poly.setAttribute("points", pts);
+        poly.setAttribute("fill", fillColor);
+        poly.setAttribute("stroke", color);
+        poly.setAttribute("stroke-width", "0.8");
+        svg.appendChild(poly);
+      }
+    }
+
+    function renderZoneList() {
+      const zone = getCameraZone();
+      zoneListContainer.innerHTML = "";
+      if (!zone || !zone.pointsPercent || zone.pointsPercent.length < 3) {
+        zoneListContainer.innerHTML = `<div class="muted" style="text-align:center; padding:16px;">此位置尚未設定任何危險區域</div>`;
+        return;
+      }
+
+      const isOrange = zone.level === "2";
+      const colorStyle = isOrange ? "var(--alert-2-orange, #fa8c16)" : "var(--alert-1-yellow, #faad14)";
+      const badgeClass = isOrange ? "orange" : "yellow";
+
+      const item = document.createElement("div");
+      item.className = "zone-list-item selected-editing";
+      item.innerHTML = `
+      <div class="row">
+        <span class="zone-swatch" style="background:${colorStyle}"></span>
+        <span>${zone.name}</span>
+      </div>
+      <div class="zone-actions">
+        <span class="badge-tag ${badgeClass}">${zone.time && zone.time.includes("夜間") ? "夜間生效" : "全天生效"}</span>
+        <button class="btn-icon-action delete" onclick="handleDeleteZone()">刪除</button>
+      </div>
+    `;
+      zoneListContainer.appendChild(item);
+    }
+
+    stage.addEventListener("click", (e) => {
+      const rect = stage.getBoundingClientRect();
+      const px = ((e.clientX - rect.left) / rect.width) * 100;
+      const py = ((e.clientY - rect.top) / rect.height) * 100;
+
+      pointsPercent.push({ x: Number(px.toFixed(2)), y: Number(py.toFixed(2)) });
+      renderSvg();
+    });
+
+    newZoneBtn.addEventListener("click", () => {
+      pointsPercent = [];
+      renderSvg();
+      editingNotice.style.display = "none";
+      saveBtn.textContent = "儲存區域";
+    });
+
+    saveBtn.addEventListener("click", () => {
+      if (pointsPercent.length < 3) {
+        alert("請至少在畫面上點擊 3 個頂點框出區域");
+        return;
+      }
+
+      const name = document.getElementById("zoneName").value.trim() || `${currentCam}危險區`;
+      const time = document.getElementById("zoneTime").value;
+      const level = document.getElementById("zoneLevel").value;
+
+      const zoneData = {
+        id: "zone-" + Date.now(),
+        name,
+        time,
+        level,
+        pointsPercent: [...pointsPercent]
+      };
+
+      saveCameraZone(zoneData);
+
+      // ======== 傳送座標到後端 ========
+      fetch("/api/set_fence/0", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pointsPercent: zoneData.pointsPercent })
+      }).then(res => res.json()).catch(err => console.error("Error setting fence:", err));
+      // ================================
+
+      renderZoneList();
+      editingNotice.style.display = "inline-block";
+      editingNotice.textContent = "已儲存最新設定";
+      saveBtn.textContent = "儲存修改";
+      alert(`「${name}」設定已更新！`);
+    });
+
+    window.handleDeleteZone = function () {
+      if (confirm(`確定要刪除此設定嗎？`)) {
+        saveCameraZone(null);
+        pointsPercent = [];
+        editingNotice.style.display = "none";
+        saveBtn.textContent = "儲存區域";
+        document.getElementById("zoneName").value = `${currentCam}危險區`;
+
+        // ======== 傳送空座標到後端清除圍籬 ========
+        fetch("/api/set_fence/0", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pointsPercent: [] })
+        }).catch(err => console.error(err));
+        // ==========================================
+
+        renderSvg();
+        renderZoneList();
+      }
+    };
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const saved = getCameraZone();
+      if (saved && saved.pointsPercent && saved.pointsPercent.length >= 3) {
+        document.getElementById("zoneName").value = saved.name || `${currentCam}危險區`;
+        if (saved.time) document.getElementById("zoneTime").value = saved.time;
+        if (saved.level) document.getElementById("zoneLevel").value = saved.level;
+        pointsPercent = JSON.parse(JSON.stringify(saved.pointsPercent));
+        editingNotice.style.display = "inline-block";
+        saveBtn.textContent = "儲存修改";
+        renderSvg();
+
+        // ======== 把既有設定同步到後端 ========
+        fetch("/api/set_fence/0", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pointsPercent: saved.pointsPercent })
+        }).catch(err => console.error(err));
+        // ======================================
+      } else {
+        document.getElementById("zoneName").value = `${currentCam}危險區`;
+        saveBtn.textContent = "儲存區域";
+      }
+      renderZoneList();
+    });
+  </script>
+</body>
+
+</html>

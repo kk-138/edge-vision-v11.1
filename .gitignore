@@ -1,0 +1,8 @@
+venv-mac/
+__pycache__/
+*.pyc
+daily_videos/
+event_videos/
+event_images/
+false_positives/
+.DS_Store
